@@ -242,6 +242,8 @@ details.method summary b{color:var(--accent)}
 .guide .gok{font-size:12.5px;color:var(--muted)}
 .guide .gok b{color:var(--ok)}
 .guide .gstat{font-size:12.5px;color:var(--warn)}
+.guide .exin{width:56px;padding:6px 8px;font-family:var(--f-mono);font-size:14px}
+.guide .mnote{color:var(--muted);font-size:12px}
 
 /* Modal sincronización */
 .modal-bg{position:fixed;inset:0;background:rgba(10,12,18,.55);display:flex;align-items:center;justify-content:center;
@@ -441,8 +443,8 @@ function findAutonomousHours(raw){
 }
 function findExamWeight(raw){
   const text=norm(raw).replace(/\s+/g," ");
-  const exKeys=["examen","prueba","evaluacion final","evaluacion unica","evaluacion global"];
-  const noKeys=["trabajo","asistencia","participacion","portafolio","portfolio","continua","proyecto","actividades","seminario","tutoria","exposicion","presentacion","memoria","informe","cuaderno","laboratorio","practicas"];
+  const exKeys=["examen","prueba final","prueba escrita","prueba objetiva","prueba global","prueba unica","prueba teorica","evaluacion final"];
+  const noKeys=["trabajo","asistencia","participacion","portafolio","portfolio","continua","continuada","semanal","control","cuestionario","seguimiento","parcial","proyecto","actividades","seminario","tutoria","exposicion","presentacion","memoria","informe","cuaderno","laboratorio","practicas"];
   const lastPos=(win,keys)=>{let p=-1;for(const k of keys){const i=win.lastIndexOf(k);if(i>p)p=i;}return p;};
   const re=/(\d{1,3})\s*(?:%|por ?ciento)/g;
   let m,total=0,any=false,snip="";
@@ -825,8 +827,8 @@ function renderSubjects(){
       if(g.how==="error") ghtml+=`<span class="gstat">📄 ${esc(g.name)} · no pude leer el PDF; rellena a mano</span>`;
       else{
         const hpart=g.hours?`<b>${g.hours}h</b> autónomas${g.how==="estimate"?" (estim.)":""}`:`sin horas`;
-        const epart=`Examen: <b>${g.examPct!=null?g.examPct+"%":"sujeto a decisión del profesor"}</b>`;
-        ghtml+=`<span class="gok">📄 ${esc(g.name)} · ${hpart} · ${epart}</span>`;
+        ghtml+=`<span class="gok">📄 ${esc(g.name)} · ${hpart}</span>`;
+        ghtml+=`<span class="gok">Examen: <input class="exin" type="number" min="0" max="100" id="ex-${s.id}" value="${g.examPct!=null?g.examPct:""}" placeholder="—">% ${g.examPct==null?`<span class="mnote">(sujeto a decisión del profesor)</span>`:""}</span>`;
       }
       ghtml+=`<button class="linkbtn" data-gdel="${s.id}">quitar</button>`;
     }
@@ -893,6 +895,8 @@ function renderSubjects(){
     if(gf) gf.addEventListener("change",e=>{onGuideFile(s, e.target.files&&e.target.files[0]);});
     const gdbtn=card.querySelector(`[data-gdel="${s.id}"]`);
     if(gdbtn) gdbtn.addEventListener("click",()=>{s.guide=null;render();});
+    const exf=card.querySelector(`#ex-${s.id}`);
+    if(exf) exf.addEventListener("change",e=>{const v=e.target.value.trim();if(s.guide)s.guide.examPct=v===""?null:Math.max(0,Math.min(100,Math.round(Number(v)||0)));state.example=false;render();});
   });
 }
 function softRender(){plan=computePlan();persist();renderHero();renderPlan();}
