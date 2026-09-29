@@ -218,6 +218,16 @@ label.item+label.item{border-top:1px dashed var(--border)}
 .exam{display:flex;align-items:center;gap:8px;background:color-mix(in srgb,var(--d5) 12%,transparent);
   border-radius:8px;padding:7px 10px;font-size:13.5px;font-weight:700;color:var(--d5);margin-bottom:4px}
 .blockmark{font-size:13.5px;font-weight:600;color:var(--muted)}
+.tline{display:flex;align-items:center;gap:10px;padding:7px 0}
+.tline+.tline{border-top:1px dashed var(--border)}
+.tline .tt{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap;min-width:96px;font-variant-numeric:tabular-nums}
+.tline .inm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px}
+.tline.study .inm{font-weight:600}
+.tline.study.done .inm{text-decoration:line-through;color:var(--muted)}
+.tline.meal .inm,.tline.evt .inm{color:var(--muted);font-weight:500}
+.tline.evt{opacity:.85}
+.tline .chk{width:19px;height:19px;flex:none;accent-color:var(--accent);cursor:pointer;margin:0}
+label.tline{cursor:pointer;user-select:none}
 .empty-state{text-align:center;color:var(--muted);padding:28px 16px;font-size:14px}
 
 /* Método de estudio */
@@ -306,11 +316,10 @@ details.method summary b{color:var(--accent)}
     <p class="hint">Indica las horas que estás despierto y, para saber tus horas libres, importa tu <b>calendario (.ics)</b> con clases, entrenos, etc. (se calcula solo) o márcalas a mano por día. Se guarda solo.</p>
     <div class="sect-h">Tu día</div>
     <div id="window"></div>
+    <div class="sect-h" style="margin-top:8px">Comidas</div>
+    <div id="meals"></div>
     <div class="sect-h" style="margin-top:8px">Calendario</div>
     <div id="calbox"></div>
-    <div class="sect-h" style="margin-top:8px">Horas ocupadas por día (a mano)</div>
-    <p class="hint" id="occnote" style="color:var(--accent)"></p>
-    <div class="days-grid" id="avail"></div>
     <div class="total"><span>Libres próximos 7 días</span><span><b id="weektotal">0</b> h</span></div>
 
     <div class="sect-h" style="margin-top:10px">Días bloqueados</div>
@@ -507,11 +516,12 @@ function computeCalendar(raw){
     else if(nm==="DTEND")cur.end=parseDT(val,params);
     else if(nm==="DURATION")cur.dur=parseDur(val);
     else if(nm==="RRULE")cur.rrule=parseKV(val);
+    else if(nm==="SUMMARY")cur.summary=val;
     else if(nm==="EXDATE")cur.ex=(cur.ex||[]).concat(val.split(",").map(v=>parseDT(v,params)).filter(Boolean).map(x=>toKey(x.date)));
   }
   const hStart=today0(); const hEnd=new Date(hStart); hEnd.setDate(hEnd.getDate()+120);
   const occ=[]; let minK=null,maxK=null;
-  const add=(occDate,durH,exset)=>{
+  const add=(occDate,durH,exset,title)=>{
     if(!(durH>0))return;
     if(occDate<hStart||occDate>hEnd)return;
     const k=toKey(occDate);
@@ -519,7 +529,7 @@ function computeCalendar(raw){
     const s=occDate.getHours()*60+occDate.getMinutes();
     let e=s+Math.round(durH*60); if(e>1440)e=1440;
     if(e<=s)return;
-    occ.push({k,s,e});
+    occ.push({k,s,e,t:title||""});
     if(!minK||k<minK)minK=k; if(!maxK||k>maxK)maxK=k;
   };
   for(const ev of events){
@@ -529,7 +539,8 @@ function computeCalendar(raw){
     const durH=ev.end?(ev.end.date-start)/3600000:(ev.dur||0)/3600000;
     if(!(durH>0))continue;
     const exset=new Set(ev.ex||[]);
-    if(!ev.rrule){ add(start,durH,exset); continue; }
+    const title=(ev.summary||"").slice(0,40);
+    if(!ev.rrule){ add(start,durH,exset,title); continue; }
     const r=ev.rrule, freq=(r.FREQ||"").toUpperCase(), interval=Math.max(1,parseInt(r.INTERVAL||"1",10));
     const until=r.UNTIL?(parseDT(r.UNTIL,"")||{}).date:null, count=r.COUNT?parseInt(r.COUNT,10):null;
     const limit=(until&&until<hEnd)?until:hEnd; let made=0;
@@ -539,24 +550,31 @@ function computeCalendar(raw){
         const wk=Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(start.getFullYear(),start.getMonth(),start.getDate()))/86400000/7);
         if(wk%interval===0 && byday.includes(d.getDay())){
           const o=new Date(d); o.setHours(start.getHours(),start.getMinutes(),0,0);
-          if(o>=start){ add(o,durH,exset); if(count&&++made>=count)break; }
+          if(o>=start){ add(o,durH,exset,title); if(count&&++made>=count)break; }
         }
       }
     } else if(freq==="DAILY"){
-      for(let d=new Date(start); d<=limit; d.setDate(d.getDate()+interval)){ add(new Date(d),durH,exset); if(count&&++made>=count)break; }
-    } else { add(start,durH,exset); }
+      for(let d=new Date(start); d<=limit; d.setDate(d.getDate()+interval)){ add(new Date(d),durH,exset,title); if(count&&++made>=count)break; }
+    } else { add(start,durH,exset,title); }
   }
   return {occ, from:minK||toKey(hStart), to:maxK||toKey(hStart), nEvents:occ.length};
 }
 function winMinutes(){let a=parseHM(state.window.start),b=parseHM(state.window.end);if(b<=a)b+=1440;return [a,b];}
-function occForDate(d){
-  const cal=state.calendar;
-  if(cal&&Array.isArray(cal.occ)&&cal.occ.length){ const k=toKey(d);
-    if(k>=cal.from&&k<=cal.to){ const w=winMinutes(); let mins=0;
-      for(const o of cal.occ){ if(o.k===k){ const ov=Math.min(o.e,w[1])-Math.max(o.s,w[0]); if(ov>0)mins+=ov; } }
-      return Math.round(mins/60*100)/100; } }
-  return Number(state.occupied[weekdayIndex(d)])||0;
+function mm(x){x=Math.round(x);const h=Math.floor(x/60)%24,mn=((x%60)+60)%60;return String(h).padStart(2,"0")+":"+String(mn).padStart(2,"0");}
+function mealBlocks(){const out=[];const m=state.meals||{};[["comida","Comida"],["cena","Cena"]].forEach(([k,label])=>{const x=m[k];if(x&&x.on&&Number(x.dur)>0){const s=parseHM(x.start);out.push({s,e:s+Number(x.dur),label});}});return out;}
+function freeIntervalsForDate(d){
+  const [ws,we]=winMinutes();
+  if((state.blocked||[]).some(b=>b.date===toKey(d)))return [];
+  const occ=[]; const cal=state.calendar; const k=toKey(d);
+  if(cal&&Array.isArray(cal.occ)){ for(const o of cal.occ){ if(o.k===k){ const s=Math.max(o.s,ws),e=Math.min(o.e,we); if(e>s)occ.push([s,e]); } } }
+  for(const mb of mealBlocks()){ const s=Math.max(mb.s,ws),e=Math.min(mb.e,we); if(e>s)occ.push([s,e]); }
+  occ.sort((a,b)=>a[0]-b[0]);
+  const merged=[]; for(const iv of occ){ if(merged.length&&iv[0]<=merged[merged.length-1][1]) merged[merged.length-1][1]=Math.max(merged[merged.length-1][1],iv[1]); else merged.push([iv[0],iv[1]]); }
+  const free=[]; let cur=ws; for(const iv of merged){ if(iv[0]>cur)free.push([cur,iv[0]]); cur=Math.max(cur,iv[1]); } if(cur<we)free.push([cur,we]);
+  return free;
 }
+function freeMinForDate(d){ return freeIntervalsForDate(d).reduce((a,iv)=>a+(iv[1]-iv[0]),0); }
+function occForDate(d){ const [ws,we]=winMinutes(); return Math.round(((we-ws)-freeMinForDate(d))/60*100)/100; }
 async function onCalendarFile(file){
   if(!file)return;
   calStatus="Leyendo calendario…"; renderCal();
@@ -622,14 +640,15 @@ function normalize(raw){
   out.done=(s.done&&typeof s.done==="object")?s.done:{};
   out.calendar=(s.calendar&&typeof s.calendar==="object"&&Array.isArray(s.calendar.occ))?{
     name:(s.calendar.name||"")+"", from:(s.calendar.from||"")+"", to:(s.calendar.to||"")+"",
-    nEvents:Number(s.calendar.nEvents)||0,
-    occ:s.calendar.occ.filter(o=>o&&o.k).map(o=>({k:o.k+"",s:Number(o.s)||0,e:Number(o.e)||0}))
+    nEvents:Number(s.calendar.nEvents)||0, url:(s.calendar.url||"")+"",
+    occ:s.calendar.occ.filter(o=>o&&o.k).map(o=>({k:o.k+"",s:Number(o.s)||0,e:Number(o.e)||0,t:(o.t||"")+""}))
   }:null;
+  out.meals=(function(m){m=(m&&typeof m==="object")?m:{};const one=(x,ds,dd)=>({on:(x&&typeof x==="object")?x.on!==false:true,start:(x&&x.start)||ds,dur:Math.max(0,Number(x&&x.dur)||dd)});return {comida:one(m.comida,"14:00",60),cena:one(m.cena,"21:00",60)};})(s.meals);
   out.updatedAt=typeof s.updatedAt==="number"?s.updatedAt:0;
   return out;
 }
 function saveLocal(){ try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){} }
-function dataOf(s){return JSON.stringify({subjects:s.subjects,window:s.window,occupied:s.occupied,blocked:s.blocked,done:s.done,calendar:s.calendar,example:s.example});}
+function dataOf(s){return JSON.stringify({subjects:s.subjects,window:s.window,occupied:s.occupied,blocked:s.blocked,done:s.done,calendar:s.calendar,meals:s.meals,example:s.example});}
 
 let lastDataJson=dataOf(state);
 let applying=false;
@@ -651,7 +670,7 @@ function weekdayIndex(d){return (d.getDay()+6)%7;}
 function parseHM(t){const p=String(t).split(":");return (Number(p[0])||0)*60+(Number(p[1])||0);}
 function windowHoursOf(win){let a=parseHM(win.start),b=parseHM(win.end);if(b<=a)b+=1440;return Math.round((b-a)/60*100)/100;}
 function addHours(start,h){let a=parseHM(start)+Math.round(h*60);a=((a%1440)+1440)%1440;return String(Math.floor(a/60)).padStart(2,"0")+":"+String(a%60).padStart(2,"0");}
-function freeHours(){const wh=windowHoursOf(state.window);return state.occupied.map(o=>Math.max(0,Math.round((wh-(Number(o)||0))*100)/100));}
+function freeWeek(){const t0=today0();let t=0;for(let i=0;i<7;i++){const d=new Date(t0);d.setDate(t0.getDate()+i);t+=freeMinForDate(d);}return Math.round(t/60*100)/100;}
 const fmtDay=new Intl.DateTimeFormat("es-ES",{weekday:"short",day:"numeric",month:"short"});
 const fmtDayFull=new Intl.DateTimeFormat("es-ES",{weekday:"long",day:"numeric",month:"short"});
 
@@ -677,15 +696,15 @@ function computePlan(){
   let maxD=null;
   valid.forEach(s=>{const d=parseDate(s.date); if(!maxD||d>maxD)maxD=d;});
   const span=Math.max(0,dayDiff(t0,maxD));
-  const wh=windowHoursOf(state.window);
   const days=[],map=new Map();
   for(let i=0;i<=span;i++){
     const d=new Date(t0);d.setDate(t0.getDate()+i);
     const wd=weekdayIndex(d);
     const key=toKey(d);
     const isBlocked=blockedMap.has(key);
-    const cap=isBlocked?0:Math.max(0,Math.round((wh-occForDate(d))*100)/100);
-    const o={date:d,key,idx:i,wd,cap,remaining:cap,items:[],exams:[],blocked:isBlocked,blockLabel:blockedMap.get(key)||""};
+    const fi=isBlocked?[]:freeIntervalsForDate(d);
+    const cap=Math.round(fi.reduce((a,iv)=>a+(iv[1]-iv[0]),0)/60*100)/100;
+    const o={date:d,key,idx:i,wd,cap,remaining:cap,freeInts:fi,items:[],blocks:[],exams:[],blocked:isBlocked,blockLabel:blockedMap.get(key)||""};
     days.push(o);map.set(i,o);
   }
   valid.forEach(s=>{const i=dayDiff(t0,parseDate(s.date)); if(map.has(i))map.get(i).exams.push(s);});
@@ -735,6 +754,27 @@ function computePlan(){
   });
   Object.values(res.stats).forEach(st=>st.done=Math.round(st.done*100)/100);
   res.totalDone=Math.round(res.totalDone*100)/100;
+
+  // maquetar el estudio como bloques con hora real dentro de los huecos libres
+  days.forEach(d=>{
+    if(!d.items.length){ d.blocks=[]; return; }
+    const items=d.items.slice().sort((a,b)=>b.difficulty-a.difficulty).map(it=>({id:it.id,name:it.name,difficulty:it.difficulty,rem:it.hours*60}));
+    const ints=d.freeInts.map(iv=>iv.slice());
+    const blocks=[]; let ii=0, cur=ints.length?ints[0][0]:0;
+    for(const it of items){
+      while(it.rem>0.01 && ii<ints.length){
+        if(cur<ints[ii][0])cur=ints[ii][0];
+        const avail=ints[ii][1]-cur;
+        if(avail<=0.01){ ii++; if(ii<ints.length)cur=ints[ii][0]; continue; }
+        const take=Math.min(it.rem,avail);
+        blocks.push({s:cur,e:cur+take,id:it.id,name:it.name,difficulty:it.difficulty});
+        cur+=take; it.rem-=take;
+        if(cur>=ints[ii][1]-0.01){ ii++; if(ii<ints.length)cur=ints[ii][0]; }
+      }
+    }
+    d.blocks=blocks;
+  });
+
   res.days=days;
   return res;
 }
@@ -759,7 +799,7 @@ function renderHero(){
   const t0=today0();
   const up=plan.valid.map(s=>({s,idx:dayDiff(t0,parseDate(s.date))}))
     .filter(x=>x.idx>=0).sort((a,b)=>a.idx-b.idx)[0];
-  const weekh=freeHours().reduce((a,b)=>a+b,0);
+  const weekh=freeWeek();
   if(!up){
     h.className="hero empty";
     h.innerHTML=`<div class="lbl">Próximo examen</div>
@@ -914,30 +954,26 @@ function renderAvail(){
   win.querySelector("#win-start").addEventListener("change",e=>{state.window.start=e.target.value||"08:00";render();});
   win.querySelector("#win-end").addEventListener("change",e=>{state.window.end=e.target.value||"00:00";render();});
 
+  renderMeals();
   renderCal();
+  document.getElementById("weektotal").textContent=freeWeek().toString().replace(".",",");
+}
 
-  const free=freeHours();
-  const usingCal=!!(state.calendar&&state.calendar.busy);
-  const noteEl=document.getElementById("occnote");
-  if(noteEl) noteEl.textContent=usingCal?"Usando tu calendario para los días que cubre. Estos valores solo se aplican a los días fuera del calendario.":"";
-  const c=document.getElementById("avail");
-  c.innerHTML="";
-  DIAS.forEach((d,i)=>{
-    const row=document.createElement("div");
-    row.className="drow"+(i>=5?" weekend":"");
-    row.innerHTML=`<span class="dname">${d}</span>
-      <input class="hin" type="number" id="oc-${i}" min="0" step="0.5" value="${state.occupied[i]}" style="width:82px"><span class="u" style="width:auto">h ocup.</span>
-      <span class="daysleft${free[i]<=0?" urgent":""}" style="margin-left:auto">libres ${fmtHours(free[i])}</span>`;
-    c.appendChild(row);
-    row.querySelector(`#oc-${i}`).addEventListener("input",e=>{
-      state.occupied[i]=Math.max(0,Number(e.target.value)||0);render();
-    });
+function renderMeals(){
+  const el=document.getElementById("meals"); if(!el)return;
+  const m=state.meals;
+  const row=(k,label)=>{const x=m[k];return `<div class="drow" style="flex-wrap:wrap">
+    <label style="display:flex;align-items:center;gap:8px;flex:none;cursor:pointer"><input type="checkbox" id="ml-${k}" ${x.on?"checked":""} style="width:18px;height:18px;accent-color:var(--accent);margin:0"><span class="dname" style="flex:none">${label}</span></label>
+    <input class="hin" type="time" id="mls-${k}" value="${x.start}" step="900" style="width:104px" ${x.on?"":"disabled"}>
+    <span class="u" style="width:auto">·</span>
+    <input class="hin" type="number" id="mld-${k}" min="0" step="15" value="${x.dur}" style="width:68px" ${x.on?"":"disabled"}><span class="u" style="width:auto">min</span>
+  </div>`;};
+  el.innerHTML=row("comida","Comida")+row("cena","Cena");
+  ["comida","cena"].forEach(k=>{
+    el.querySelector(`#ml-${k}`).addEventListener("change",e=>{state.meals[k].on=e.target.checked;render();});
+    el.querySelector(`#mls-${k}`).addEventListener("change",e=>{state.meals[k].start=e.target.value||"14:00";render();});
+    el.querySelector(`#mld-${k}`).addEventListener("input",e=>{state.meals[k].dur=Math.max(0,Number(e.target.value)||0);render();});
   });
-  const t0=today0(); let total=0;
-  for(let i=0;i<7;i++){const d=new Date(t0);d.setDate(t0.getDate()+i);const k=toKey(d);
-    const bl=(state.blocked||[]).some(b=>b.date===k);
-    total+= bl?0:Math.max(0,wh-occForDate(d));}
-  document.getElementById("weektotal").textContent=(Math.round(total*100)/100).toString().replace(".",",");
 }
 
 function renderCal(){
@@ -990,7 +1026,7 @@ function renderPlan(){
     c.innerHTML=`<div class="empty-state">Añade al menos una asignatura con fecha y horas para ver tu plan.</div>`;
     return;
   }
-  const weekh=freeHours().reduce((a,b)=>a+b,0);
+  const weekh=freeWeek();
   let html="";
 
   const w=[...plan.warnings];
@@ -998,7 +1034,7 @@ function renderPlan(){
   if(w.length){
     html+=`<div class="warn-box"><h3>⚠ Avisos</h3><ul>`;
     w.forEach(x=>{
-      if(x.type==="nohours")html+=`<li>No has indicado horas libres. Ve a <b>Disponibilidad</b> y marca cuánto puedes estudiar cada día.</li>`;
+      if(x.type==="nohours")html+=`<li>No hay horas libres para estudiar. En <b>Disponibilidad</b>, revisa tu franja «Tu día» e importa tu calendario.</li>`;
       else if(x.type==="hoy")html+=`<li><b>${esc(x.name)}</b>: el examen es hoy, ya no queda tiempo para planificar.</li>`;
       else if(x.type==="pasado")html+=`<li><b>${esc(x.name)}</b>: la fecha del examen ya pasó.</li>`;
       else html+=`<li>Te faltan <b>${fmtHours(x.deficit)}</b> para llegar a tu objetivo en <b>${esc(x.name)}</b>. Añade horas libres o reduce el objetivo.</li>`;
@@ -1033,23 +1069,29 @@ function renderPlan(){
       <div class="mm">📚 ${esc(c.method)}</div><div class="mx">${c.how}</div></div>`;});
   html+=`</div>`;
 
-  const withContent=plan.days.filter(d=>d.items.length||d.exams.length||d.blocked);
-  html+=`<div class="sect-h">Agenda</div>`;
+  const withContent=plan.days.filter(d=>(d.blocks&&d.blocks.length)||d.exams.length||d.blocked);
+  html+=`<div class="sect-h">Calendario</div>`;
   if(!withContent.length){
-    html+=`<div class="empty-state">No hay sesiones que mostrar. Revisa tus horas libres.</div>`;
+    html+=`<div class="empty-state">No hay sesiones que mostrar. Revisa tu franja «Tu día» e importa tu calendario.</div>`;
   }else{
+    const [ws,we]=winMinutes(); const cal=state.calendar;
     withContent.forEach(d=>{
-      const tot=d.items.reduce((a,b)=>a+b.hours,0);
+      const totStudy=(d.blocks||[]).reduce((a,b)=>a+(b.e-b.s),0)/60;
       html+=`<div class="day${d.idx===0?" today":""}${d.blocked?" blocked":""}">
-        <div class="dh"><span class="dd">${fmtDay.format(d.date)}</span>${tot>0?`<span class="dt">${fmtHours(tot)}</span>`:""}</div>`;
+        <div class="dh"><span class="dd">${fmtDay.format(d.date)}</span>${totStudy>0?`<span class="dt">${fmtHours(totStudy)}</span>`:""}</div>`;
       d.exams.forEach(e=>{html+=`<div class="exam">📝 Examen · ${esc(e.name)}</div>`;});
-      if(d.blocked)html+=`<div class="blockmark">🚫 Sin estudio${d.blockLabel?" · "+esc(d.blockLabel):""}</div>`;
-      d.items.sort((a,b)=>b.difficulty-a.difficulty).forEach(it=>{
-        const dk=d.key+"|"+it.id;
-        html+=`<label class="item${it.done?" done":""}">
-          <input type="checkbox" class="chk" data-k="${dk}" ${it.done?"checked":""}>
-          <span class="dc diff-${it.difficulty}"></span>
-          <span class="inm">${esc(it.name)}</span><span class="ih">${fmtHours(it.hours)}</span></label>`;
+      if(d.blocked){ html+=`<div class="blockmark">🚫 Sin estudio${d.blockLabel?" · "+esc(d.blockLabel):""}</div></div>`; return; }
+      const entries=[];
+      (d.blocks||[]).forEach(b=>entries.push({s:b.s,e:b.e,type:"study",b}));
+      mealBlocks().forEach(mbk=>{const s=Math.max(mbk.s,ws),e=Math.min(mbk.e,we);if(e>s)entries.push({s,e,type:"meal",label:mbk.label});});
+      if(cal&&Array.isArray(cal.occ)){for(const o of cal.occ){if(o.k===d.key){const s=Math.max(o.s,ws),e=Math.min(o.e,we);if(e>s)entries.push({s,e,type:"evt",title:o.t});}}}
+      entries.sort((a,b)=>a.s-b.s||a.e-b.e);
+      entries.forEach(en=>{
+        const tt=`${mm(en.s)}–${mm(en.e)}`;
+        if(en.type==="study"){const b=en.b,dk=d.key+"|"+b.id,done=!!(state.done&&state.done[dk]);
+          html+=`<label class="tline study${done?" done":""}"><input type="checkbox" class="chk" data-k="${dk}" ${done?"checked":""}><span class="tt">${tt}</span><span class="dc diff-${b.difficulty}"></span><span class="inm">${esc(b.name)}</span></label>`;
+        }else if(en.type==="meal"){html+=`<div class="tline meal"><span class="tt">${tt}</span><span class="inm">🍽 ${esc(en.label)}</span></div>`;}
+        else{html+=`<div class="tline evt"><span class="tt">${tt}</span><span class="inm">${en.title?esc(en.title):"Ocupado"}</span></div>`;}
       });
       html+=`</div>`;
     });
@@ -1137,7 +1179,7 @@ function applyRemote(rs, ts){
   applying=true;
   const n=normalize(rs);
   state.subjects=n.subjects; state.window=n.window; state.occupied=n.occupied;
-  state.blocked=n.blocked; state.done=n.done; state.calendar=n.calendar; state.example=n.example;
+  state.blocked=n.blocked; state.done=n.done; state.calendar=n.calendar; state.meals=n.meals; state.example=n.example;
   state.updatedAt=ts||Date.now();
   render();          // persist() updates lastDataJson; applying evita reenviar
   applying=false;
@@ -1167,7 +1209,7 @@ async function pushNow(){
   if(!sb||!session) return;
   setStatus("connecting");
   const payload={ v:1, client:CID, ts:state.updatedAt||Date.now(),
-    state:{subjects:state.subjects,window:state.window,occupied:state.occupied,blocked:state.blocked,done:state.done,calendar:state.calendar,example:state.example,updatedAt:state.updatedAt} };
+    state:{subjects:state.subjects,window:state.window,occupied:state.occupied,blocked:state.blocked,done:state.done,calendar:state.calendar,meals:state.meals,example:state.example,updatedAt:state.updatedAt} };
   try{
     const { error } = await sb.from("study_plans")
       .upsert({ user_id:session.user.id, data:payload, updated_at:new Date().toISOString() });
