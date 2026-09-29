@@ -439,6 +439,24 @@ function findAutonomousHours(raw){
   if(e){const ects=toNum(e[1]); if(ects>=1&&ects<=60) return {hours:Math.round(ects*25*0.6),how:"estimate",snippet:"~60% de "+ects+" ECTS"};}
   return null;
 }
+function findExamWeight(raw){
+  const text=norm(raw).replace(/\s+/g," ");
+  const exKeys=["examen","prueba","evaluacion final","evaluacion unica","evaluacion global"];
+  const noKeys=["trabajo","asistencia","participacion","portafolio","portfolio","continua","proyecto","actividades","seminario","tutoria","exposicion","presentacion","memoria","informe","cuaderno","laboratorio","practicas"];
+  const lastPos=(win,keys)=>{let p=-1;for(const k of keys){const i=win.lastIndexOf(k);if(i>p)p=i;}return p;};
+  const re=/(\d{1,3})\s*(?:%|por ?ciento)/g;
+  let m,total=0,any=false,snip="";
+  while((m=re.exec(text))){
+    const pct=parseInt(m[1],10); if(!(pct>0&&pct<=100))continue;
+    const start=Math.max(0,m.index-30); const win=text.slice(start,m.index);
+    const ep=lastPos(win,exKeys), np=lastPos(win,noKeys);
+    if(ep<0||np>ep)continue;   // el rótulo más cercano al % no es de examen
+    total+=pct; any=true;
+    if(!snip)snip=text.slice(start,m.index+m[0].length).trim();
+    if(total>=100){total=100;break;}
+  }
+  return any?{pct:total,snippet:snip}:null;
+}
 async function onGuideFile(s,file){
   if(!file)return;
   guideStatus[s.id]="Leyendo guía…"; renderSubjects();
@@ -446,13 +464,16 @@ async function onGuideFile(s,file){
     let text="";
     if(/\.pdf$/i.test(file.name)||file.type==="application/pdf") text=await extractPdfText(file);
     else if(/\.txt$/i.test(file.name)||file.type==="text/plain") text=await file.text();
-    else { delete guideStatus[s.id]; s.guide={name:file.name,hours:null,how:"none",snippet:""}; render(); return; }
+    else { delete guideStatus[s.id]; s.guide={name:file.name,hours:null,how:"none",snippet:"",examPct:null,examSnippet:""}; render(); return; }
     const r=findAutonomousHours(text);
+    const ex=findExamWeight(text);
     delete guideStatus[s.id];
-    if(r&&r.hours){ s.hours=r.hours; s.touched=true; s.guide={name:file.name,hours:r.hours,how:r.how,snippet:(r.snippet||"").slice(0,90)}; state.example=false; }
-    else s.guide={name:file.name,hours:null,how:"none",snippet:""};
+    if(r&&r.hours){ s.hours=r.hours; s.touched=true; state.example=false; }
+    s.guide={ name:file.name, hours:(r&&r.hours)?r.hours:null, how:r?r.how:"none",
+      snippet:r?(r.snippet||"").slice(0,90):"",
+      examPct: ex?ex.pct:null, examSnippet: ex?(ex.snippet||"").slice(0,90):"" };
     render();
-  }catch(e){ delete guideStatus[s.id]; s.guide={name:file.name,hours:null,how:"error",snippet:""}; render(); }
+  }catch(e){ delete guideStatus[s.id]; s.guide={name:file.name,hours:null,how:"error",snippet:"",examPct:null,examSnippet:""}; render(); }
 }
 
 /* ---------- Calendario (.ics): calcular horas ocupadas/libres por día ---------- */
@@ -580,7 +601,7 @@ function normalize(raw){
     id:x.id||nid(), name:(x.name||"")+"", date:x.date||"",
     difficulty:Math.min(5,Math.max(1,Number(x.difficulty)||3)),
     hours:Math.max(0,Number(x.hours)||0), touched:!!x.touched, diffTouched:!!x.diffTouched,
-    guide:(x.guide&&typeof x.guide==="object")?{name:(x.guide.name||"")+"",hours:(typeof x.guide.hours==="number"?x.guide.hours:null),how:(x.guide.how||"")+"",snippet:(x.guide.snippet||"")+""}:null
+    guide:(x.guide&&typeof x.guide==="object")?{name:(x.guide.name||"")+"",hours:(typeof x.guide.hours==="number"?x.guide.hours:null),how:(x.guide.how||"")+"",snippet:(x.guide.snippet||"")+"",examPct:(typeof x.guide.examPct==="number"?x.guide.examPct:null),examSnippet:(x.guide.examSnippet||"")+""}:null
   })):[];
   let win=s.window;
   if(!win||typeof win!=="object"||!win.start||!win.end) win={start:"08:00",end:"00:00"};
@@ -801,14 +822,22 @@ function renderSubjects(){
     let ghtml=`<div class="guide">`;
     if(gs) ghtml+=`<span class="gstat">⏳ ${esc(gs)}</span>`;
     else if(g){
-      if(g.hours) ghtml+=`<span class="gok">📄 ${esc(g.name)} · <b>${g.hours}h</b> autónomas${g.how==="estimate"?" (estimada)":""}</span>`;
-      else if(g.how==="error") ghtml+=`<span class="gstat">📄 ${esc(g.name)} · no pude leer el PDF; escribe las horas arriba</span>`;
-      else ghtml+=`<span class="gstat">📄 ${esc(g.name)} · no detecté las horas; escríbelas arriba</span>`;
+      if(g.how==="error") ghtml+=`<span class="gstat">📄 ${esc(g.name)} · no pude leer el PDF; rellena a mano</span>`;
+      else{
+        const hpart=g.hours?`<b>${g.hours}h</b> autónomas${g.how==="estimate"?" (estim.)":""}`:`sin horas`;
+        const epart=`Examen: <b>${g.examPct!=null?g.examPct+"%":"sujeto a decisión del profesor"}</b>`;
+        ghtml+=`<span class="gok">📄 ${esc(g.name)} · ${hpart} · ${epart}</span>`;
+      }
       ghtml+=`<button class="linkbtn" data-gdel="${s.id}">quitar</button>`;
     }
     ghtml+=`<label class="btn ghost gbtn" for="gd-${s.id}">${g?"Cambiar guía":"📄 Subir guía docente"}</label>
       <input type="file" accept=".pdf,.txt" id="gd-${s.id}" hidden>`;
-    if(g&&g.snippet) ghtml+=`<details class="method" style="flex-basis:100%"><summary>Ver dónde lo detectó</summary><div class="mbody"><p class="mses">…${esc(g.snippet)}…</p></div></details>`;
+    if(g&&(g.snippet||g.examSnippet)){
+      ghtml+=`<details class="method" style="flex-basis:100%"><summary>Ver dónde lo detectó</summary><div class="mbody">`;
+      if(g.snippet) ghtml+=`<p class="mses"><b>Horas:</b> …${esc(g.snippet)}…</p>`;
+      if(g.examSnippet) ghtml+=`<p class="mses"><b>Examen:</b> …${esc(g.examSnippet)}…</p>`;
+      ghtml+=`</div></details>`;
+    }
     ghtml+=`</div>`;
 
     const card=document.createElement("div");
@@ -984,7 +1013,7 @@ function renderPlan(){
     else{est=fmtHours((st?st.scheduled-st.done:0))+" pendientes";cls="pend";}
     html+=`<div class="sumrow">
       <span class="dc diff-${s.difficulty}"></span>
-      <div class="sn"><div class="snm">${esc(s.name)}</div><div class="sd">${DIFF[s.difficulty]} · ${dtxt}</div></div>
+      <div class="sn"><div class="snm">${esc(s.name)}</div><div class="sd">${DIFF[s.difficulty]} · ${dtxt}${(s.guide&&s.guide.examPct!=null)?" · examen "+s.guide.examPct+"%":""}</div></div>
       <div class="sh">${st?fmtHours(st.done):"0h"} / ${fmtHours(Number(s.hours))}<br><span class="est ${cls}">${est}</span></div>
     </div>`;
   });
