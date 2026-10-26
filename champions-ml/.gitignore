@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+# Ligas de football-data.co.uk: se descargan con scripts/descargar_datos.py
+data/ligas/
