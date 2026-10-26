@@ -1,0 +1,72 @@
+[
+ {
+  "home": "Real Madrid (ESP)",
+  "away": "Bayern München (GER)",
+  "neutral": false,
+  "stage": "league",
+  "firstLegGd": null,
+  "expected": [
+   0.402559141655623,
+   0.1972943480319454,
+   0.40014559084096124,
+   1.6034531878708689,
+   1.557617185009214
+  ]
+ },
+ {
+  "home": "Paris Saint-Germain (FRA)",
+  "away": "Arsenal FC (ENG)",
+  "neutral": true,
+  "stage": "final",
+  "firstLegGd": null,
+  "expected": [
+   0.4122289158413805,
+   0.19115973776565764,
+   0.3966102891972757,
+   1.531278585777546,
+   1.5059928235120972
+  ]
+ },
+ {
+  "home": "FC Barcelona (ESP)",
+  "away": "Inter (ITA)",
+  "neutral": false,
+  "stage": "semifinal",
+  "firstLegGd": -2.0,
+  "expected": [
+   0.6884324968485904,
+   0.15203696704312955,
+   0.1595179268504724,
+   2.2599999814065836,
+   1.0339737191485663
+  ]
+ },
+ {
+  "home": "FK Bodø/Glimt (NOR)",
+  "away": "Manchester City (ENG)",
+  "neutral": false,
+  "stage": "league",
+  "firstLegGd": null,
+  "expected": [
+   0.30567420803341044,
+   0.2157348856566237,
+   0.4785902525671556,
+   1.3800328146649226,
+   1.6058992091411224
+  ]
+ },
+ {
+  "home": "FK Kairat (KAZ)",
+  "away": "Liverpool FC (ENG)",
+  "neutral": false,
+  "stage": "league",
+  "firstLegGd": null,
+  "expected": [
+   0.07036240422272566,
+   0.14345272216540858,
+   0.7861358710377384,
+   0.7638130990827214,
+   2.637063423359607
+  ]
+ }
+]

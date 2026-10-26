@@ -53,6 +53,15 @@ Qué se puede leer de esto:
   2020-21, equipos ucranianos jugando fuera de su país). Se tratan como partidos
   normales.
 
+## Página web (para el móvil)
+
+`web/index.html` es una página que funciona sola, sin servidor: lleva dentro el
+modelo y calcula las predicciones en el propio navegador. Muestra las
+probabilidades 1X2, los goles esperados, la cuadrícula de marcadores y el ranking Elo.
+
+- Para regenerarla tras actualizar los datos: `python scripts/exportar_web.py`
+- Para comprobar que da los mismos números que Python: `node web/test_paridad.js`
+
 ## Uso
 
 ```bash
