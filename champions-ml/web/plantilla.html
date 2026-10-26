@@ -134,6 +134,32 @@ ol.rank .elo { text-align: right; font-family: var(--display); font-weight: 600;
 .stat b { font-family: var(--display); font-size: 1.7rem; font-weight: 800; color: var(--ink); line-height: 1.05; font-variant-numeric: tabular-nums; }
 .stat span { font-size: 0.75rem; }
 
+/* Champions 2026/27 */
+.title-odds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.title-odds li { display: grid; grid-template-columns: 22px minmax(0, 1fr) 52px; gap: 8px; align-items: center; }
+.title-odds .pos { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.title-odds .nm { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.title-odds .nm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.title-odds .nm i { display: block; height: 6px; border-radius: 3px; background: var(--home); }
+.title-odds .v { text-align: right; font-family: var(--display); font-weight: 800; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.sim-wrap { overflow-x: auto; }
+table.sim { border-collapse: collapse; width: 100%; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+table.sim th, table.sim td { padding: 6px 4px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.sim th { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+table.sim th:nth-child(2), table.sim td:nth-child(2) { text-align: left; white-space: normal; min-width: 110px; }
+table.sim td.hi { font-weight: 600; }
+details.more summary { cursor: pointer; font-weight: 600; color: var(--home); padding: 4px 0; }
+ul.fixtures { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+ul.fixtures li button {
+  width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid transparent; border-radius: 10px;
+  padding: 8px 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; text-align: left; cursor: pointer;
+}
+ul.fixtures li button:hover { border-color: var(--line); }
+ul.fixtures .m { font-weight: 600; overflow-wrap: anywhere; }
+ul.fixtures .d { font-size: 0.75rem; color: var(--muted); }
+ul.fixtures .p3 { grid-column: 1 / -1; display: flex; height: 8px; border-radius: 5px; overflow: hidden; }
+ul.fixtures .nums { font-size: 0.8rem; font-variant-numeric: tabular-nums; color: var(--muted); align-self: start; }
+
 /* Buscador */
 .search input[type="search"] {
   font: inherit; font-size: 1rem; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
@@ -182,6 +208,24 @@ ol.table .acts { justify-content: flex-end; }
     <h1>Pronóstico Champions</h1>
     <p>Elige un cruce y mira la probabilidad de cada resultado a los 90 minutos.</p>
   </header>
+
+  <section class="panel" id="sim" aria-label="Pronóstico Champions 2026/27" hidden>
+    <span class="eyebrow">Temporada en curso</span>
+    <h2 id="simTitle">¿Quién ganará la Champions?</h2>
+    <p class="hint" id="simHint"></p>
+    <ol class="title-odds" id="titleOdds"></ol>
+    <details class="more">
+      <summary>Ver los 36 equipos y cada ronda</summary>
+      <div class="sim-wrap"><table class="sim" id="simTable"></table></div>
+      <p class="hint">Pts: puntos ahora. Top 8: pasar directo a octavos. Octavos: llegar a octavos (directo o por el playoff).</p>
+    </details>
+  </section>
+
+  <section class="panel" id="nextMd" aria-label="Próxima jornada" hidden>
+    <h2>Próxima jornada</h2>
+    <p class="hint">Toca un partido para verlo en detalle.</p>
+    <ul class="fixtures" id="fixtures"></ul>
+  </section>
 
   <section class="panel search" aria-label="Buscador">
     <label for="q" class="eyebrow">Buscar equipo o liga</label>
@@ -470,8 +514,8 @@ function renderStatic() {
   $("sN").textContent = String(M.meta.test_matches).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   $("sRange").textContent = "Prueba: temporadas " + M.meta.test_first.replace("-", "/") + " a " + M.meta.test_last.replace("-", "/") +
     ", cada una predicha con un modelo entrenado solo con las anteriores.";
-  $("sDate").textContent = "Champions hasta el " + fecha + " (final de la temporada " + M.meta.last_season.replace("-", "/") +
-    "); ligas y copas hasta el " + fechaLigas + ". Los partidos europeos de la temporada en curso todavía no están incluidos.";
+  $("sDate").textContent = "Champions hasta el " + fecha + " (temporada " + M.meta.last_season.replace("-", "/") +
+    "; la temporada en curso sale de Wikipedia); ligas y copas hasta el " + fechaLigas + ".";
 }
 
 // ---------- Buscador y ligas ----------
@@ -627,6 +671,70 @@ function initSearch() {
   renderLeague();
 }
 
+// ---------- Champions en curso (simulación) ----------
+function renderSim() {
+  const S = M.sim;
+  if (!S) return;
+  $("sim").hidden = false;
+  $("nextMd").hidden = false;
+  const y = parseInt(M.meta.last_season.slice(0, 4), 10);  // temporada en curso
+  $("simTitle").textContent = "¿Quién ganará la Champions " + y + "/" + String(y + 1).slice(2) + "?";
+  $("simHint").textContent = "Probabilidad de ser campeón según " + S.n_sim.toLocaleString("es-ES") +
+    " simulaciones de lo que queda de temporada, con " + S.jugados + " de 144 partidos de la fase de liga ya jugados (hasta el " +
+    fmtDate(S.ultimo_jugado) + ").";
+  const sim = S.simulacion;
+  const top = sim.slice(0, 10);
+  const max = top[0].campeon;
+  top.forEach((r, i) => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="pos"></span><span class="nm"><span></span><i></i></span><span class="v"></span>';
+    li.querySelector(".pos").textContent = i + 1;
+    li.querySelector(".nm span").textContent = (M.teams[r.equipo] ? T(r.equipo).name : r.equipo);
+    li.querySelector(".nm i").style.width = Math.max(2, Math.round((r.campeon / max) * 100)) + "%";
+    li.querySelector(".v").textContent = pctSmall(r.campeon);
+    $("titleOdds").append(li);
+  });
+  const now = {};
+  S.clasificacion.forEach((r) => (now[r.equipo] = r));
+  const tbl = $("simTable");
+  const head = tbl.createTHead().insertRow();
+  ["#", "Equipo", "Pts", "Top 8", "Octavos", "Cuartos", "Semis", "Final", "Campeón"].forEach((h) => {
+    const th = document.createElement("th"); th.textContent = h; head.append(th);
+  });
+  const body = tbl.createTBody();
+  sim.forEach((r, i) => {
+    const tr = body.insertRow();
+    const cells = [i + 1, M.teams[r.equipo] ? T(r.equipo).name : r.equipo, now[r.equipo].pts,
+      pctSmall(r.top8), pctSmall(r.octavos), pctSmall(r.cuartos), pctSmall(r.semis), pctSmall(r.final), pctSmall(r.campeon)];
+    cells.forEach((c, k) => { const td = tr.insertCell(); td.textContent = c; if (k === 8) td.className = "hi"; });
+  });
+  S.partidos.filter((p) => p.proxima).forEach((p) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    const nm = (id) => (M.teams[id] ? T(id).name : id);
+    b.innerHTML = '<span><span class="m"></span><br><span class="d"></span></span><span class="nums"></span><span class="p3"></span>';
+    b.querySelector(".m").textContent = nm(p.local) + " – " + nm(p.visitante);
+    b.querySelector(".d").textContent = fmtDate(p.fecha);
+    b.querySelector(".nums").textContent = p.p.map((x) => Math.round(x * 100) + "%").join(" · ");
+    [["var(--home)", p.p[0]], ["var(--draw)", p.p[1]], ["var(--away)", p.p[2]]].forEach(([c, v]) => {
+      const sp = document.createElement("span"); sp.style.background = c; sp.style.width = (v * 100) + "%";
+      b.querySelector(".p3").append(sp);
+    });
+    b.setAttribute("aria-label", "Ver " + nm(p.local) + " contra " + nm(p.visitante));
+    b.addEventListener("click", () => {
+      if (!M.teams[p.local] || !M.teams[p.visitante]) return;
+      $("home").value = p.local; $("away").value = p.visitante;
+      $("stage").value = "league"; $("neutral").checked = false; $("isSecond").checked = false;
+      render();
+      document.querySelector(".board").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    li.append(b);
+    $("fixtures").append(li);
+  });
+}
+const pctSmall = (x) => (x === 0 ? "0 %" : x < 0.001 ? "<0,1 %" : (x * 100).toLocaleString("es-ES", { minimumFractionDigits: x < 0.1 ? 1 : 0, maximumFractionDigits: x < 0.1 ? 1 : 0 }) + " %");
+
 function init() {
   fillSelect($("home"));
   fillSelect($("away"));
@@ -654,6 +762,7 @@ function init() {
   });
   renderStatic();
   initSearch();
+  renderSim();
   render();
 }
 init();

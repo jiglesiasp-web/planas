@@ -187,3 +187,27 @@ def test_no_two_clubs_merged_into_one():
     merged = [(k, c, tuple(sorted(n))) for k, d in groups.items() for c, n in d.items()
               if len(n) > 1 and tuple(sorted(n)) not in allowed]
     assert merged == []
+
+
+def test_wikipedia_football_boxes():
+    from clml.wikipedia import parse_wikitext
+
+    text = """{{#invoke:Football box|main
+|date       = {{Start date|2026|9|8|df=y}}
+|team1      = [[AEK Athens F.C.|AEK Athens]] {{fbaicon|GRE}}
+|score      = 1–0
+|team2      = {{fbaicon|AUT}} [[LASK]]
+|goals1     =
+}}
+{{#invoke:Football box|main
+|date       = {{Start date|2026|11|3|df=y}}
+|team1      = [[FC Shakhtar Donetsk|Shakhtar Donetsk]] {{fbaicon|UKR}}
+|score      =
+|team2      = {{fbaicon|POR}} [[Sporting CP]]
+}}"""
+    rows = parse_wikitext(text)
+    assert rows[0] == {"fecha": "2026-09-08", "local": "AEK Athens", "pais_local": "GRE",
+                       "visitante": "LASK", "pais_visitante": "AUT",
+                       "goles_local": 1, "goles_visitante": 0}
+    # Partido sin jugar: sin goles (y el campo vacío no se come la línea siguiente).
+    assert rows[1]["visitante"] == "Sporting CP" and rows[1]["goles_local"] == ""

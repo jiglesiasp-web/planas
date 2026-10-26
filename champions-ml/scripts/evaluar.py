@@ -29,7 +29,9 @@ REPORTS = ROOT / "reports"
 
 def main() -> None:
     df, _ = build_dataset()
-    seasons = sorted(s for s in df.season.unique() if s >= "2017-18")
+    # Solo temporadas completas: la temporada en curso (Wikipedia) no entra en la prueba.
+    from clml.wikipedia import SEASON as CURRENT
+    seasons = sorted(s for s in df.season.unique() if "2017-18" <= s < CURRENT)
     res, preds = walk_forward(df, seasons,
                               make_models=lambda: [AlwaysHome(), combined_europe_only()] + all_models())
 

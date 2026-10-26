@@ -38,6 +38,22 @@ Qué se puede leer de esto:
 - El modelo más complejo (gradient boosting) es el peor: con unos 2.000 partidos de
   Champions se sobreajusta.
 
+## Pronóstico de la Champions 2026-27
+
+`python scripts/simular_champions.py --actualizar` descarga de Wikipedia el
+calendario y los resultados de la fase de liga, entrena el modelo con todo lo
+disponible y juega 20.000 veces lo que queda de temporada (fase de liga y
+eliminatorias con el formato de la UEFA desde 2024-25; los sorteos se simulan al
+azar). Resultado en [`reports/simulacion_2026_27.md`](reports/simulacion_2026_27.md)
+y en la página web.
+
+Con 54 de 144 partidos jugados (hasta el 21/10/2026), los favoritos son Bayern
+(20,0 %), PSG (19,8 %), Barcelona (17,7 %), Arsenal (15,9 %) y Real Madrid (9,9 %).
+
+Límites de la simulación: la fuerza de cada equipo no cambia durante la temporada
+simulada (no hay lesiones, fichajes ni rachas), y el modelo se ha validado partido a
+partido, no en torneos completos.
+
 ## Limitaciones
 
 - **No se ha comparado con las casas de apuestas** en la Champions: no hay cuotas
@@ -48,9 +64,10 @@ Qué se puede leer de esto:
 - No conoce lesiones, alineaciones ni fichajes.
 - Las copas solo están disponibles en los últimos años (ver tabla de datos), así que
   aportan poco. Los partidos de copa contra equipos sin historial (amateurs) se ignoran.
-- Los partidos de **Champions llegan hasta la final del 30/05/2026**. Las ligas y
-  copas llegan hasta el **21/10/2026**, así que la forma actual en liga sí cuenta,
-  pero los partidos europeos de 2026-27 aún no están en la fuente.
+- Los datos de openfootball llegan hasta la final del 30/05/2026; la fase de liga
+  de 2026-27 se lee de Wikipedia (`data/champions_2026_27.csv`). Ligas y copas, hasta
+  el **21/10/2026**. No están la Europa League ni la Conference de 2025-26 ni las
+  fases previas de 2026-27, porque la fuente aún no las publica.
 - Algunos partidos "en casa" no lo fueron de verdad (sedes cambiadas por la COVID en
   2020-21, equipos ucranianos jugando fuera de su país).
 

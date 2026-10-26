@@ -81,6 +81,8 @@ def export_model(P: Predictor) -> dict:
         },
         "teams": teams,
         "leagues": export_leagues(P, teams),
+        "sim": (json.loads((WEB / "simulacion.json").read_text(encoding="utf-8"))
+                if (WEB / "simulacion.json").exists() else None),
         "meta": {
             "last_date": P.last_date.isoformat(),
             "data_date": P.data_date.isoformat(),

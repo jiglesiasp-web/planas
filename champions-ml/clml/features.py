@@ -76,9 +76,15 @@ def load_matches(raw_dir: Path | None = None) -> list[Match]:
     return matches
 
 
-def load_all_matches(domestic: bool = True) -> list[Match]:
-    """Partidos europeos y, si `domestic`, también ligas y copas nacionales."""
+def load_all_matches(domestic: bool = True, current: bool = True) -> list[Match]:
+    """Partidos europeos y, si `domestic`, también ligas y copas nacionales.
+
+    Si `current`, añade los partidos ya jugados de la Champions en curso
+    (data/champions_2026_27.csv, sacado de Wikipedia).
+    """
     eu = load_matches()
+    if current:
+        eu = eu + load_current_season(eu)[0]
     if not domestic:
         return eu
     from .domestic import FD_DIR, load_football_data, load_openfootball_domestic
@@ -90,6 +96,18 @@ def load_all_matches(domestic: bool = True) -> list[Match]:
     allm = [m for m in eu + dom if m.played and m.home != m.away]
     allm.sort(key=lambda m: m.date)
     return allm
+
+
+def load_current_season(eu: list[Match]) -> tuple[list[Match], list[Match]]:
+    """(jugados, pendientes) de la Champions en curso, con los nombres del modelo."""
+    from .wikipedia import CSV_PATH, load_season
+    if not CSV_PATH.exists():
+        return [], []
+    names: dict[str, set] = defaultdict(set)
+    for m in eu:
+        names[m.home_country].add(m.home)
+        names[m.away_country].add(m.away)
+    return load_season(names)
 
 
 def _goal_mult(gd: int) -> float:
