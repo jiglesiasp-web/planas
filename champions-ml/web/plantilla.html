@@ -134,6 +134,41 @@ ol.rank .elo { text-align: right; font-family: var(--display); font-weight: 600;
 .stat b { font-family: var(--display); font-size: 1.7rem; font-weight: 800; color: var(--ink); line-height: 1.05; font-variant-numeric: tabular-nums; }
 .stat span { font-size: 0.75rem; }
 
+/* Buscador */
+.search input[type="search"] {
+  font: inherit; font-size: 1rem; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 11px 12px; width: 100%; min-width: 0;
+}
+.search label { color: var(--muted); }
+ul.results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+ul.results:empty { display: none; }
+ul.results li { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 10px; background: var(--bg); }
+ul.results .who { display: flex; flex-direction: column; min-width: 0; }
+ul.results .who b { font-weight: 600; overflow-wrap: anywhere; }
+ul.results .who span { font-size: 0.78rem; color: var(--muted); }
+.kind { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.acts { display: flex; gap: 6px; flex-shrink: 0; }
+.btn {
+  font: inherit; font-size: 0.8rem; font-weight: 600; padding: 6px 10px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.btn.h { color: var(--home); border-color: color-mix(in srgb, var(--home) 45%, var(--line)); }
+.btn.a { color: var(--away); border-color: color-mix(in srgb, var(--away) 45%, var(--line)); }
+.btn:hover { background: var(--bg); }
+.muted { font-size: 0.75rem; color: var(--muted); }
+ul.results li > .muted { max-width: 92px; text-align: right; }
+
+/* Ligas */
+ol.table { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+ol.table li { display: grid; grid-template-columns: 22px minmax(0, 1fr) 44px 84px; gap: 8px; align-items: center; font-size: 0.9rem; padding: 4px 0; border-bottom: 1px solid var(--line); }
+ol.table li:last-child { border-bottom: 0; }
+ol.table .pos { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+ol.table .nm { overflow-wrap: anywhere; min-width: 0; }
+ol.table .nm.dom { color: var(--muted); }
+ol.table .elo { text-align: right; font-family: var(--display); font-weight: 600; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+ol.table .acts .btn { padding: 4px 8px; }
+ol.table .acts { justify-content: flex-end; }
+
 @media (prefers-reduced-motion: reduce) { .bar span { transition: none; } }
 @media (max-width: 380px) {
   .odd .v { font-size: 1.9rem; }
@@ -147,6 +182,13 @@ ol.rank .elo { text-align: right; font-family: var(--display); font-weight: 600;
     <h1>Pronóstico Champions</h1>
     <p>Elige un cruce y mira la probabilidad de cada resultado a los 90 minutos.</p>
   </header>
+
+  <section class="panel search" aria-label="Buscador">
+    <label for="q" class="eyebrow">Buscar equipo o liga</label>
+    <input type="search" id="q" placeholder="Ej.: Betis, Benfica, Bundesliga…" autocomplete="off" spellcheck="false">
+    <ul class="results" id="results"></ul>
+    <p class="hint" id="qHint" hidden></p>
+  </section>
 
   <section class="panel" aria-label="Elegir partido">
     <div class="fixture">
@@ -219,6 +261,17 @@ ol.rank .elo { text-align: right; font-family: var(--display); font-weight: 600;
       <span><i style="--c: var(--away)"></i>Gana el visitante</span>
     </div>
     <p class="hint">Filas: goles del local. Columnas: goles del visitante. Cada casilla es la probabilidad de ese marcador exacto.</p>
+  </section>
+
+  <section class="panel" id="ligas" aria-label="Ligas">
+    <h2>Ligas</h2>
+    <div class="field">
+      <label for="leagueSel" class="hint">Ordenadas por nivel (Elo medio de sus equipos)</label>
+      <select id="leagueSel"></select>
+    </div>
+    <p class="hint" id="leagueHint"></p>
+    <ol class="table" id="leagueTable"></ol>
+    <p class="hint">Los equipos en gris no han jugado en Europa en estos datos: aparecen para comparar, pero el modelo no puede predecir sus partidos.</p>
   </section>
 
   <section class="panel" aria-label="Ranking Elo">
@@ -421,6 +474,159 @@ function renderStatic() {
     "); ligas y copas hasta el " + fechaLigas + ". Los partidos europeos de la temporada en curso todavía no están incluidos.";
 }
 
+// ---------- Buscador y ligas ----------
+const L = M.leagues || {};
+const leagueKeys = Object.keys(L).sort((a, b) => L[b].avg_elo - L[a].avg_elo);
+const leagueLabel = (k) => L[k].name + " · " + country(L[k].country);
+const fold = (t) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  .replace(/ø/g, "o").replace(/æ/g, "ae").replace(/ß/g, "ss").replace(/ı/g, "i").replace(/ł/g, "l").replace(/đ/g, "d");
+const SHORT = { psg: "paris saint-germain", barca: "barcelona", atleti: "atletico", "man city": "manchester city",
+  "man utd": "manchester united", "man united": "manchester united", spurs: "tottenham", juve: "juventus" };
+const fmtDate = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+
+// Índice: equipos con historial europeo + equipos solo de liga (última temporada de cada liga).
+const index = [];
+ids.forEach((id) => {
+  const t = T(id);
+  const lg = t.league ? L[t.league].name : "";
+  index.push({ type: "team", id, europe: true, name: t.name, elo: t.elo_all, current: t.current,
+    meta: [country(t.country), lg].filter(Boolean).join(" · "), key: fold([t.name, country(t.country), lg].join(" ")) });
+});
+leagueKeys.forEach((k) => {
+  L[k].teams.forEach((row) => {
+    if (row.europe) return;
+    index.push({ type: "team", id: row.id, europe: false, name: row.name, elo: row.elo, league: k,
+      meta: country(L[k].country) + " · " + L[k].name, key: fold([row.name, country(L[k].country), L[k].name].join(" ")) });
+  });
+  index.push({ type: "league", id: k, name: L[k].name, meta: country(L[k].country) + " · " + L[k].teams.length + " equipos",
+    key: fold([L[k].name, country(L[k].country), "liga"].join(" ")) });
+});
+
+function search(q) {
+  let f = fold(q.trim());
+  if (SHORT[f]) f = SHORT[f];
+  const words = f.split(/\s+/).filter(Boolean);
+  if (!words.length || f.length < 2) return [];
+  const hits = index.filter((e) => words.every((w) => e.key.includes(w)));
+  const score = (e) => (fold(e.name).startsWith(f) ? 0 : 1) * 10 + (e.type === "league" ? 0 : 1) + (e.europe ? 0 : 2) + (e.current ? -0.5 : 0);
+  hits.sort((a, b) => score(a) - score(b) || (b.elo || 0) - (a.elo || 0));
+  return hits.slice(0, 10);
+}
+
+function pickTeam(id, side) {
+  $(side).value = id;
+  render();
+  document.querySelector(".board").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+}
+
+function sideButtons(id) {
+  const box = document.createElement("span");
+  box.className = "acts";
+  [["home", "Local", "h"], ["away", "Visitante", "a"]].forEach(([side, label, cls]) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn " + cls;
+    b.textContent = label;
+    b.setAttribute("aria-label", "Poner " + T(id).name + " como " + label.toLowerCase());
+    b.addEventListener("click", () => pickTeam(id, side));
+    box.append(b);
+  });
+  return box;
+}
+
+function renderResults() {
+  const q = $("q").value;
+  const ul = $("results");
+  ul.innerHTML = "";
+  const hits = search(q);
+  $("qHint").hidden = !(q.trim().length >= 2 && !hits.length);
+  $("qHint").textContent = "No encuentro nada con «" + q.trim() + "». Prueba con otra parte del nombre.";
+  hits.forEach((e) => {
+    const li = document.createElement("li");
+    const who = document.createElement("span");
+    who.className = "who";
+    const k = document.createElement("span");
+    k.className = "kind";
+    k.textContent = e.type === "league" ? "Liga" : "Equipo";
+    const b = document.createElement("b");
+    b.textContent = e.name;
+    const m = document.createElement("span");
+    m.textContent = e.meta + (e.type === "team" ? " · Elo " + Math.round(e.elo) : "");
+    who.append(k, b, m);
+    li.append(who);
+    if (e.type === "league") {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn";
+      btn.textContent = "Ver liga";
+      btn.addEventListener("click", () => {
+        $("leagueSel").value = e.id;
+        renderLeague();
+        $("ligas").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      const acts = document.createElement("span");
+      acts.className = "acts";
+      acts.append(btn);
+      li.append(acts);
+    } else if (e.europe) {
+      li.append(sideButtons(e.id));
+    } else {
+      const n = document.createElement("span");
+      n.className = "muted";
+      n.textContent = "Sin partidos europeos";
+      li.append(n);
+    }
+    ul.append(li);
+  });
+}
+
+function renderLeague() {
+  const k = $("leagueSel").value;
+  const lg = L[k];
+  if (!lg) return;
+  $("leagueHint").textContent = lg.teams.length + " equipos · Elo medio " + Math.round(lg.avg_elo) +
+    " · datos hasta el " + fmtDate(lg.last_date);
+  const ol = $("leagueTable");
+  ol.innerHTML = "";
+  lg.teams.forEach((row, i) => {
+    const li = document.createElement("li");
+    const pos = document.createElement("span");
+    pos.className = "pos";
+    pos.textContent = i + 1;
+    const nm = document.createElement("span");
+    nm.className = "nm" + (row.europe ? "" : " dom");
+    nm.textContent = row.name;
+    const elo = document.createElement("span");
+    elo.className = "elo";
+    elo.textContent = Math.round(row.elo);
+    li.append(pos, nm, elo);
+    if (row.europe && M.teams[row.id]) {
+      const acts = sideButtons(row.id);
+      acts.querySelectorAll(".btn").forEach((b) => (b.textContent = b.classList.contains("h") ? "L" : "V"));
+      li.append(acts);
+    } else {
+      const n = document.createElement("span");
+      n.className = "acts";
+      n.innerHTML = '<span class="muted">solo liga</span>';
+      li.append(n);
+    }
+    ol.append(li);
+  });
+}
+
+function initSearch() {
+  leagueKeys.forEach((k, i) => $("leagueSel").appendChild(new Option((i + 1) + ". " + leagueLabel(k) + " · " + Math.round(L[k].avg_elo), k)));
+  let saved = null;
+  try { saved = localStorage.getItem("pronostico-champions-liga"); } catch (e) { /* sin almacenamiento */ }
+  $("leagueSel").value = saved && L[saved] ? saved : (L["ESP-1"] ? "ESP-1" : leagueKeys[0]);
+  $("leagueSel").addEventListener("input", () => {
+    try { localStorage.setItem("pronostico-champions-liga", $("leagueSel").value); } catch (e) { /* nada */ }
+    renderLeague();
+  });
+  $("q").addEventListener("input", renderResults);
+  renderLeague();
+}
+
 function init() {
   fillSelect($("home"));
   fillSelect($("away"));
@@ -447,6 +653,7 @@ function init() {
     render();
   });
   renderStatic();
+  initSearch();
   render();
 }
 init();

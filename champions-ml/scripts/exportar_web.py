@@ -21,7 +21,8 @@ warnings.filterwarnings("ignore")
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from clml.features import FEATURES, KNOCKOUT, STAGE_ORDER, _nan0  # noqa: E402
+from clml.features import FEATURES, KNOCKOUT, STAGE_ORDER, _nan0, load_all_matches  # noqa: E402
+from clml.teams import team_id  # noqa: E402
 from clml.models import metrics  # noqa: E402
 from clml.predict import Predictor, parse_first_leg  # noqa: E402
 
@@ -79,6 +80,7 @@ def export_model(P: Predictor) -> dict:
             "away": {"coef": [r(v, 10) for v in pois.ma.coef_], "intercept": r(pois.ma.intercept_, 10)},
         },
         "teams": teams,
+        "leagues": export_leagues(P, teams),
         "meta": {
             "last_date": P.last_date.isoformat(),
             "data_date": P.data_date.isoformat(),
@@ -89,6 +91,54 @@ def export_model(P: Predictor) -> dict:
             "test_accuracy": r(ev["acierto"], 4),
         },
     }
+
+
+# Nombre de cada liga: (país, división) -> nombre. Las que no están se llaman "1.ª división".
+LEAGUE_NAMES = {
+    ("ENG", 1): "Premier League", ("ENG", 2): "Championship", ("ESP", 1): "LaLiga",
+    ("ESP", 2): "Segunda División", ("GER", 1): "Bundesliga", ("GER", 2): "2. Bundesliga",
+    ("ITA", 1): "Serie A", ("ITA", 2): "Serie B", ("FRA", 1): "Ligue 1", ("FRA", 2): "Ligue 2",
+    ("NED", 1): "Eredivisie", ("POR", 1): "Primeira Liga", ("BEL", 1): "Pro League",
+    ("TUR", 1): "Süper Lig", ("GRE", 1): "Super League (Grecia)", ("SCO", 1): "Premiership",
+    ("AUT", 1): "Bundesliga (Austria)", ("SUI", 1): "Super League (Suiza)", ("DEN", 1): "Superliga",
+    ("NOR", 1): "Eliteserien", ("SWE", 1): "Allsvenskan", ("POL", 1): "Ekstraklasa",
+    ("ROU", 1): "Liga I", ("RUS", 1): "Liga Premier rusa", ("IRL", 1): "Premier Division (Irlanda)",
+    ("FIN", 1): "Veikkausliiga", ("CZE", 1): "Chance Liga", ("CRO", 1): "HNL", ("SRB", 1): "SuperLiga (Serbia)",
+    ("UKR", 1): "Liga Premier ucraniana", ("CYP", 1): "Primera División (Chipre)", ("HUN", 1): "NB I",
+}
+
+
+def export_leagues(P: Predictor, teams: dict) -> dict:
+    """Equipos de la última temporada disponible de cada liga, con su Elo combinado."""
+    seasons: dict[tuple, dict[str, set]] = {}
+    last_date: dict[tuple, object] = {}
+    for m in load_all_matches():
+        if m.competition != "LIGA":
+            continue
+        key = (m.home_country, m.extra.get("division", 1))
+        seasons.setdefault(key, {}).setdefault(m.season, set()).update(
+            (team_id(m.home_country, m.home), team_id(m.away_country, m.away)))
+        last_date[key] = max(last_date.get(key, m.date), m.date)
+    out = {}
+    for (country, div), by_season in seasons.items():
+        season = max(by_season)
+        members = [t for t in by_season[season] if t in P.fb.rating]
+        if len(members) < 6:
+            continue
+        rows = sorted(({"id": t, "name": t.rsplit(" (", 1)[0], "elo": r(P.fb.elo(t), 1),
+                        "europe": t in teams} for t in members), key=lambda x: -x["elo"])
+        out[f"{country}-{div}"] = {
+            "name": LEAGUE_NAMES.get((country, div), "1.ª división" if div == 1 else f"{div}.ª división"),
+            "country": country, "division": div, "season": season,
+            "last_date": last_date[(country, div)].isoformat(),
+            "avg_elo": r(float(np.mean([x["elo"] for x in rows])), 1),
+            "teams": rows,
+        }
+    for key, lg in out.items():
+        for row in lg["teams"]:
+            if row["europe"]:
+                teams[row["id"]]["league"] = key
+    return out
 
 
 def parity_cases(P: Predictor) -> list[dict]:

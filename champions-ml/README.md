@@ -19,7 +19,7 @@ modelo entrenado **solo con las temporadas anteriores**. Total: 1.247 partidos.
 | Regresión logística, con ligas y copas | 58,6 % | 0,919 |
 | Combinado, solo datos europeos (versión anterior) | 58,9 % | 0,922 |
 | Solo Elo europeo + regresión logística | 58,6 % | 0,935 |
-| Gradient boosting, con ligas y copas | 57,5 % | 0,955 |
+| Gradient boosting, con ligas y copas | 57,7 % | 0,957 |
 | Referencia: siempre gana el local | 46,8 % | — |
 
 Qué se puede leer de esto:
@@ -114,6 +114,8 @@ un nombre es ambiguo ("madrid"), el programa muestra las opciones.
 `web/index.html` es una página que funciona sola, sin servidor: lleva dentro el
 modelo y calcula las predicciones en el propio navegador. Muestra las
 probabilidades 1X2, los goles esperados, la cuadrícula de marcadores y el ranking Elo.
+Tiene un buscador de equipos y ligas (sin tildes ni mayúsculas: "barca", "bundesliga") y
+una sección de ligas ordenadas por nivel, con sus equipos de la última temporada.
 
 - Para regenerarla tras actualizar los datos: `python scripts/exportar_web.py`
 - Para comprobar que da los mismos números que Python: `node web/test_paridad.js`

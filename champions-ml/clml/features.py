@@ -139,8 +139,10 @@ class EloEuropa:
 class FeatureBuilder:
     """Recorre los partidos en orden y guarda el estado de cada equipo."""
 
-    def __init__(self, params: EloParams | None = None, form_window: int = 6):
+    def __init__(self, params: EloParams | None = None, form_window: int = 6,
+                 emit_competitions: tuple = ("UCL",)):
         self.p = params or EloParams()
+        self.emit_competitions = emit_competitions  # de qué competiciones se generan filas
         self.form_window = form_window
         self.eu = EloEuropa()                 # Elo solo con partidos europeos
         self.rating: dict[str, float] = {}   # nivel del equipo dentro de su país
@@ -243,7 +245,7 @@ class FeatureBuilder:
             for m in first:
                 self._step(m, emit=False)
         keep = (self.rating, self.league_off, self.country_of, self.division)
-        self.__init__(self.p, self.form_window)
+        self.__init__(self.p, self.form_window, self.emit_competitions)
         self.rating, self.league_off, self.country_of, self.division = keep
 
     def run(self, matches: list[Match]) -> pd.DataFrame:
@@ -272,7 +274,7 @@ class FeatureBuilder:
                 self.eu.ensure(h, m.home_country, m)
                 self.eu.ensure(a, m.away_country, m)
             row = None
-            if emit and m.competition == "UCL" and not m.qualifying:
+            if emit and m.competition in self.emit_competitions and not m.qualifying:
                 row = self._row(m, h, a)
             self._update(m, h, a, rh, ra)
             if m.competition in EUROPEAN:
@@ -300,7 +302,7 @@ class FeatureBuilder:
         sh = self.team_snapshot(h, m.home_country, m.date)
         sa = self.team_snapshot(a, m.away_country, m.date)
         row = {
-            "date": m.date, "season": m.season, "stage": m.stage,
+            "date": m.date, "season": m.season, "stage": m.stage, "competition": m.competition,
             "home": h, "away": a,
             "home_goals": m.home_goals, "away_goals": m.away_goals,
             "result": "H" if m.home_goals > m.away_goals else ("A" if m.home_goals < m.away_goals else "D"),

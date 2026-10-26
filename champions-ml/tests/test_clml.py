@@ -164,3 +164,26 @@ def test_parse_first_leg():
     assert parse_first_leg("2-1") == -1
     assert parse_first_leg("0-3") == 3
     assert parse_first_leg(None) is None
+
+
+@needs_leagues
+def test_no_two_clubs_merged_into_one():
+    """Dos nombres que juegan la misma temporada y competición no pueden ser el mismo club."""
+    from collections import defaultdict
+
+    from clml.domestic import load_football_data, load_openfootball_domestic
+    from clml.teams import resolve_domestic_names
+
+    dom = load_football_data() + load_openfootball_domestic()
+    original = [(m.home, m.away) for m in dom]
+    resolve_domestic_names(load_matches(), dom)
+    groups = defaultdict(lambda: defaultdict(set))
+    for m, (oh, oa) in zip(dom, original):
+        key = (m.extra["source"], m.home_country, m.season, m.competition)
+        groups[key][m.home].add(oh)
+        groups[key][m.away].add(oa)
+    # Única excepción: el Craiova cambió de nombre a mitad de la temporada 2020-21.
+    allowed = {("U Craiova", "Univ. Craiova")}
+    merged = [(k, c, tuple(sorted(n))) for k, d in groups.items() for c, n in d.items()
+              if len(n) > 1 and tuple(sorted(n)) not in allowed]
+    assert merged == []
