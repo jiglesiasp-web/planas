@@ -40,7 +40,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     P = Predictor()
-    print(f"(Datos hasta {P.last_date:%d/%m/%Y})\n")
+    print(f"(Champions hasta {P.last_date:%d/%m/%Y}; ligas y copas hasta {P.data_date:%d/%m/%Y})\n")
 
     if args.ranking:
         print(P.ranking(25).to_string())

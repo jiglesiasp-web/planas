@@ -236,9 +236,10 @@ ol.rank .elo { text-align: right; font-family: var(--display); font-weight: 600;
     </div>
     <ul>
       <li id="sRange"></li>
-      <li>Cuando da un 65&nbsp;% al favorito, este gana alrededor del 66&nbsp;% de las veces: las probabilidades están bien calibradas.</li>
+      <li>Cuando da un 75&nbsp;% al favorito, este gana alrededor del 77&nbsp;% de las veces: las probabilidades están bien calibradas.</li>
+      <li>Usa la Champions, la Europa League y la Conference, las ligas de 21 países desde 2011 o 2012 (más otras 31 ligas solo de los últimos años) y las copas de 20 países, casi todas solo de los últimos años. Con las ligas y copas, las probabilidades mejoraron de forma pequeña pero clara; el porcentaje de aciertos casi no cambió.</li>
       <li><strong>No se ha comparado con las casas de apuestas.</strong> No hay pruebas de que les gane; no sirve para apostar.</li>
-      <li>Solo conoce partidos europeos. No sabe de lesiones, alineaciones, fichajes ni ligas nacionales.</li>
+      <li>No sabe de lesiones, alineaciones ni fichajes.</li>
       <li>El empate casi nunca es la opción más probable, aunque pasa en uno de cada cinco partidos.</li>
       <li id="sDate"></li>
     </ul>
@@ -309,7 +310,7 @@ function state() {
 
 function teamMeta(id) {
   const t = T(id);
-  return country(t.country) + " · Elo " + Math.round(t.elo);
+  return country(t.country) + " · Elo " + Math.round(t.elo_all);
 }
 
 function render() {
@@ -397,27 +398,27 @@ function render() {
 }
 
 function renderStatic() {
-  const ranked = ids.filter((id) => T(id).recent >= 6).sort((a, b) => T(b).elo - T(a).elo).slice(0, 12);
-  const hi = T(ranked[0]).elo, lo = T(ranked[ranked.length - 1]).elo - 60;
+  const ranked = ids.filter((id) => T(id).recent >= 6).sort((a, b) => T(b).elo_all - T(a).elo_all).slice(0, 12);
+  const hi = T(ranked[0]).elo_all, lo = T(ranked[ranked.length - 1]).elo_all - 60;
   const ol = $("rank");
   ranked.forEach((id, k) => {
     const li = document.createElement("li");
     li.innerHTML = '<span class="pos"></span><span class="nm"><span></span><i class="eb"></i></span><span class="elo"></span>';
     li.querySelector(".pos").textContent = k + 1;
     li.querySelector(".nm span").textContent = T(id).name + " · " + country(T(id).country);
-    li.querySelector(".eb").style.width = Math.round(((T(id).elo - lo) / (hi - lo)) * 100) + "%";
-    li.querySelector(".elo").textContent = Math.round(T(id).elo);
+    li.querySelector(".eb").style.width = Math.round(((T(id).elo_all - lo) / (hi - lo)) * 100) + "%";
+    li.querySelector(".elo").textContent = Math.round(T(id).elo_all);
     ol.append(li);
   });
-  const d = new Date(M.meta.last_date + "T12:00:00");
-  const fecha = d.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
-  $("rankHint").textContent = "Fuerza de cada equipo según sus partidos europeos, tras el " + fecha + ". Solo equipos con al menos 6 partidos recientes.";
+  const fmt = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+  const fecha = fmt(M.meta.last_date), fechaLigas = fmt(M.meta.data_date);
+  $("rankHint").textContent = "Fuerza de cada equipo según sus partidos europeos, de liga y de copa, hasta el " + fechaLigas + ". Solo equipos con al menos 6 partidos europeos recientes.";
   $("sAcc").textContent = pct(M.meta.test_accuracy, 1);
   $("sN").textContent = String(M.meta.test_matches).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   $("sRange").textContent = "Prueba: temporadas " + M.meta.test_first.replace("-", "/") + " a " + M.meta.test_last.replace("-", "/") +
     ", cada una predicha con un modelo entrenado solo con las anteriores.";
-  $("sDate").textContent = "Datos hasta el " + fecha + " (final de la temporada " + M.meta.last_season.replace("-", "/") +
-    "). La temporada en curso todavía no está incluida.";
+  $("sDate").textContent = "Champions hasta el " + fecha + " (final de la temporada " + M.meta.last_season.replace("-", "/") +
+    "); ligas y copas hasta el " + fechaLigas + ". Los partidos europeos de la temporada en curso todavía no están incluidos.";
 }
 
 function init() {

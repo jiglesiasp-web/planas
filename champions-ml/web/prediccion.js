@@ -7,11 +7,13 @@
   var FEATURES = ["elo_diff", "elo_exp", "elo_home", "elo_away", "neutral",
     "stage_level", "knockout", "second_leg", "first_leg_gd",
     "form_ppg_diff", "form_gd_diff", "ucl_exp_home", "ucl_exp_away",
-    "country_ppg_home", "country_ppg_away"];
+    "country_ppg_home", "country_ppg_away",
+    "elo_all_diff", "elo_all_exp", "dom_ppg_diff", "dom_gd_diff", "rest_diff"];
   var MAX_GOALS = 10;
 
   function features(M, h, a, neutral, stage, firstLegGd) {
     var exp = 1 / (1 + Math.pow(10, -((h.elo - a.elo) + (neutral ? 0 : M.home_adv)) / 400));
+    var expAll = 1 / (1 + Math.pow(10, -((h.elo_all - a.elo_all) + (neutral ? 0 : M.home_adv_all)) / 400));
     var hasLeg = firstLegGd !== null && firstLegGd !== undefined;
     return {
       elo_diff: h.elo - a.elo, elo_exp: exp, elo_home: h.elo, elo_away: a.elo,
@@ -22,7 +24,10 @@
       first_leg_gd: hasLeg ? firstLegGd : 0,
       form_ppg_diff: h.form_ppg - a.form_ppg, form_gd_diff: h.form_gd - a.form_gd,
       ucl_exp_home: h.ucl_exp, ucl_exp_away: a.ucl_exp,
-      country_ppg_home: h.country_ppg, country_ppg_away: a.country_ppg
+      country_ppg_home: h.country_ppg, country_ppg_away: a.country_ppg,
+      elo_all_diff: h.elo_all - a.elo_all, elo_all_exp: expAll,
+      dom_ppg_diff: h.dom_ppg - a.dom_ppg, dom_gd_diff: h.dom_gd - a.dom_gd,
+      rest_diff: 0  // los días de descanso no se conocen de antemano
     };
   }
 
@@ -33,7 +38,9 @@
       second_leg: f.second_leg, first_leg_gd: -f.first_leg_gd,
       form_ppg_diff: -f.form_ppg_diff, form_gd_diff: -f.form_gd_diff,
       ucl_exp_home: f.ucl_exp_away, ucl_exp_away: f.ucl_exp_home,
-      country_ppg_home: f.country_ppg_away, country_ppg_away: f.country_ppg_home
+      country_ppg_home: f.country_ppg_away, country_ppg_away: f.country_ppg_home,
+      elo_all_diff: -f.elo_all_diff, elo_all_exp: 1 - f.elo_all_exp,
+      dom_ppg_diff: -f.dom_ppg_diff, dom_gd_diff: -f.dom_gd_diff, rest_diff: -f.rest_diff
     };
   }
 
@@ -110,7 +117,7 @@
     for (var i = 0; i < 6; i++) for (var j = 0; j < 6; j++) scores.push({ s: i + "-" + j, p: m[i][j], h: i, a: j });
     scores.sort(function (x, y) { return y.p - x.p; });
     return { home: p[0], draw: p[1], away: p[2], xgHome: g[0], xgAway: g[1],
-             matrix: m, top: scores.slice(0, 5), eloHome: h.elo, eloAway: a.elo };
+             matrix: m, top: scores.slice(0, 5), eloHome: h.elo_all, eloAway: a.elo_all };
   }
 
   var api = { predict: predict, FEATURES: FEATURES };

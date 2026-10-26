@@ -4,6 +4,9 @@ Modelo que da la probabilidad de **victoria local, empate o victoria visitante**
 (1X2, resultado a los 90 minutos) en partidos de la UEFA Champions League, además
 de los goles esperados y los marcadores más probables.
 
+Usa partidos europeos (Champions, Europa League, Conference y fases previas) y
+partidos nacionales de los equipos (ligas y copas).
+
 ## Resultados
 
 Prueba "como en directo": cada temporada de 2017-18 a 2025-26 se predice con un
@@ -11,61 +14,72 @@ modelo entrenado **solo con las temporadas anteriores**. Total: 1.247 partidos.
 
 | Modelo | Acierto | Log loss ↓ |
 |---|---|---|
-| **Combinado (regresión logística + Poisson)** | **58,8 %** | **0,922** |
-| Poisson (goles) | 58,5 % | 0,922 |
-| Regresión logística (todas las variables) | 58,9 % | 0,928 |
-| Solo Elo + regresión logística | 58,6 % | 0,935 |
-| Gradient boosting | 56,5 % | 0,969 |
+| **Combinado (regresión logística + Poisson), con ligas y copas** | **59,1 %** | **0,912** |
+| Poisson (goles), con ligas y copas | 58,5 % | 0,912 |
+| Regresión logística, con ligas y copas | 58,6 % | 0,919 |
+| Combinado, solo datos europeos (versión anterior) | 58,9 % | 0,922 |
+| Solo Elo europeo + regresión logística | 58,6 % | 0,935 |
+| Gradient boosting, con ligas y copas | 57,5 % | 0,955 |
 | Referencia: siempre gana el local | 46,8 % | — |
 
 Qué se puede leer de esto:
 
 - El modelo acierta el resultado en **casi 6 de cada 10 partidos**, frente al 47 %
   de apostar siempre por el local.
-- Las **probabilidades están bien calibradas**: cuando el modelo da un 65 % al
-  favorito, este gana un 66 % de las veces (tabla completa en
+- **Añadir ligas y copas mejora las probabilidades** (log loss de 0,922 a 0,912).
+  La mejora es pequeña pero no es casualidad: el intervalo de confianza del 95 %
+  (remuestreo de partidos) va de 0,002 a 0,018 y mejora en 7 de las 9 temporadas.
+  **En aciertos casi no cambia** (737 frente a 734 partidos).
+- Las **probabilidades están bien calibradas**: cuando el modelo da un 75 % al
+  favorito, este gana un 77 % de las veces (tabla completa en
   [`reports/evaluacion.md`](reports/evaluacion.md)).
 - El acierto es más alto que en una liga nacional porque en la Champions hay
-  muchos partidos desiguales (un grande contra un equipo modesto en la fase
-  inicial).
-- La mayor parte de la información la aporta el **rating Elo**. El resto de variables
-  mejora las probabilidades (log loss), pero apenas cambia el acierto.
-- El modelo más complejo (gradient boosting) es el peor: con unos 2.000 partidos se
-  sobreajusta. Con pocos datos, los modelos sencillos funcionan mejor.
+  muchos partidos desiguales.
+- El modelo más complejo (gradient boosting) es el peor: con unos 2.000 partidos de
+  Champions se sobreajusta.
 
 ## Limitaciones
 
-- **No se ha comparado con las casas de apuestas** porque estos datos no incluyen
-  cuotas. No hay ninguna prueba de que este modelo les gane, así que no sirve como
-  sistema de apuestas.
-- **El empate nunca sale como resultado más probable** (en la Champions se dan en
-  torno al 20 % de los partidos y casi nunca son la opción favorita). Sí se le
-  asigna su probabilidad.
-- Solo usa partidos **europeos** (Champions, Europa League, Conference y fases
-  previas). No conoce las ligas nacionales, las lesiones, las alineaciones ni los
-  fichajes. Un equipo que juega poco en Europa tiene un Elo poco fiable.
-- Las competiciones menores solo están disponibles desde 2020-21 (Europa League) y
-  2021-22 (Conference).
-- Los datos llegan hasta la **final del 30/05/2026** (temporada 2025-26). La
-  temporada 2026-27 todavía no está publicada en la fuente; cuando lo esté, basta con
-  ejecutar `scripts/descargar_datos.py`.
+- **No se ha comparado con las casas de apuestas** en la Champions: no hay cuotas
+  gratuitas de esta competición. No hay ninguna prueba de que este modelo les gane,
+  así que no sirve como sistema de apuestas.
+- **El empate nunca sale como resultado más probable** (pasa en uno de cada cinco
+  partidos, pero casi nunca es la opción favorita). Sí se le asigna su probabilidad.
+- No conoce lesiones, alineaciones ni fichajes.
+- Las copas solo están disponibles en los últimos años (ver tabla de datos), así que
+  aportan poco. Los partidos de copa contra equipos sin historial (amateurs) se ignoran.
+- Los partidos de **Champions llegan hasta la final del 30/05/2026**. Las ligas y
+  copas llegan hasta el **21/10/2026**, así que la forma actual en liga sí cuenta,
+  pero los partidos europeos de 2026-27 aún no están en la fuente.
 - Algunos partidos "en casa" no lo fueron de verdad (sedes cambiadas por la COVID en
-  2020-21, equipos ucranianos jugando fuera de su país). Se tratan como partidos
-  normales.
+  2020-21, equipos ucranianos jugando fuera de su país).
 
-## Página web (para el móvil)
+## Datos
 
-`web/index.html` es una página que funciona sola, sin servidor: lleva dentro el
-modelo y calcula las predicciones en el propio navegador. Muestra las
-probabilidades 1X2, los goles esperados, la cuadrícula de marcadores y el ranking Elo.
+| Fuente | Qué | Licencia |
+|---|---|---|
+| [openfootball/champions-league](https://github.com/openfootball/champions-league) | Champions (desde 2011-12), Europa League (desde 2020-21), Conference (desde 2021-22), fases previas (desde 2024-25) | Dominio público, incluido en `data/raw/` |
+| [football-data.co.uk](https://www.football-data.co.uk) | Ligas de 21 países desde 2011-12 o 2012-13: 1.ª división de Inglaterra, España, Alemania, Italia, Francia, Países Bajos, Bélgica, Portugal, Turquía, Grecia, Escocia, Austria, Suiza, Dinamarca, Noruega, Suecia, Polonia, Rumanía, Rusia, Irlanda y Finlandia, y 2.ª división de las cinco grandes | No se incluye: se descarga con `scripts/descargar_datos.py` |
+| [openfootball](https://github.com/openfootball) (england, espana, deutschland, italy, europe) | FA Cup y Copa de la Liga y DFB-Pokal (desde 2018-19), Copa del Rey y Coppa Italia (desde 2020-21), copas de otros 16 países (2024-25) y ligas de otros 31 países (últimas 1-5 temporadas) | Dominio público, incluido en `data/openfootball_nacional/` |
 
-- Para regenerarla tras actualizar los datos: `python scripts/exportar_web.py`
-- Para comprobar que da los mismos números que Python: `node web/test_paridad.js`
+En total, unos 140.000 partidos.
+
+**Nombres de equipos.** Cada fuente escribe los nombres a su manera ("Ath Madrid",
+"Atlético Madrid", "Club Atlético de Madrid"). Se unifican así:
+
+1. Tabla manual en [`data/equipos_mapeo.csv`](data/equipos_mapeo.csv): equivalencias
+   que no se pueden deducir ("Austria Vienna" = "Austria Wien") y nombres que **no**
+   deben unirse aunque se parezcan ("Oxford City" no es el Oxford United).
+2. Coincidencia estricta (`clml/similitud.py`): todas las palabras del nombre corto
+   deben estar en el largo (se admiten abreviaturas de hasta 4 letras: "Man" →
+   "Manchester") y las que sobran deben ser genéricas ("FC", "City", "Real"...).
+   Así "TSV Schott Mainz" (amateur) no se confunde con el Mainz.
 
 ## Uso
 
 ```bash
 pip install -r requirements.txt
+python scripts/descargar_datos.py      # necesario la primera vez (ligas nacionales)
 
 # Un partido
 python scripts/predecir.py "Real Madrid" "Bayern"
@@ -85,54 +99,51 @@ python scripts/predecir.py --ranking
 # Repetir la evaluación y regenerar reports/
 python scripts/evaluar.py
 
+# Volver a ajustar los parámetros del Elo (con 2012-13 a 2016-17)
+python scripts/ajustar_elo.py
+
 # Tests
 python -m pytest -q
-```
-
-Ejemplo de salida:
-
-```
-Real Madrid (ESP)  vs  Bayern München (GER)
-  Elo: 1825 vs 1926
-
-  Gana local      40.3%  ████████████
-  Empate          19.7%  ██████
-  Gana visitante  40.0%  ████████████
-
-  Goles esperados: 1.60 - 1.56
-  Marcadores más probables: 1-1 (11%), 2-1 (8%), 1-2 (8%), 1-0 (7%), 2-2 (7%)
 ```
 
 Los nombres se buscan de forma aproximada ("bayern", "atletico madrid", "psg"). Si
 un nombre es ambiguo ("madrid"), el programa muestra las opciones.
 
+## Página web (para el móvil)
+
+`web/index.html` es una página que funciona sola, sin servidor: lleva dentro el
+modelo y calcula las predicciones en el propio navegador. Muestra las
+probabilidades 1X2, los goles esperados, la cuadrícula de marcadores y el ranking Elo.
+
+- Para regenerarla tras actualizar los datos: `python scripts/exportar_web.py`
+- Para comprobar que da los mismos números que Python: `node web/test_paridad.js`
+
 ## Cómo funciona
 
-1. **Datos** ([openfootball/champions-league](https://github.com/openfootball/champions-league),
-   dominio público): 4.244 partidos europeos de 2011-12 a 2025-26, de los cuales
-   1.997 son de la fase final de la Champions. Están incluidos en `data/raw/`.
-2. **Lectura** (`clml/parse.py`): convierte el formato de texto de openfootball en
-   partidos. Para la prórroga y los penaltis se toma el resultado a los 90 minutos.
-3. **Nombres** (`clml/teams.py`): unifica variantes del mismo club ("Real Madrid" /
-   "Real Madrid CF").
-4. **Variables** (`clml/features.py`), calculadas solo con partidos anteriores
-   (un test lo comprueba):
-   - **Elo** de cada equipo con todos los partidos europeos. Los parámetros
-     (K = 35, ventaja de campo = 80 puntos) se ajustaron con las temporadas 2012-13 a
-     2016-17, antes del periodo de prueba (`scripts/ajustar_elo.py`).
-   - **Forma**: puntos y diferencia de goles en los últimos 6 partidos europeos.
-   - **Fuerza del país**: puntos por partido de sus clubes en Europa en las 3
-     temporadas anteriores.
-   - **Experiencia** en la Champions, **fase**, **campo neutral**, **ida o vuelta** y
-     **resultado de la ida**.
-5. **Modelos** (`clml/models.py`): regresión logística multinomial, regresión de
+1. **Lectura** (`clml/parse.py`, `clml/domestic.py`): convierte los ficheros de
+   openfootball y football-data en partidos. Para la prórroga y los penaltis se toma
+   el resultado a los 90 minutos.
+2. **Variables** (`clml/features.py`), calculadas solo con partidos anteriores
+   (dos tests lo comprueban):
+   - **Elo europeo**: solo con partidos europeos (el de la versión anterior).
+   - **Elo combinado**: con todos los partidos. El Elo de un equipo es su nivel
+     dentro de su país más el nivel de su país. Los partidos nacionales mueven solo
+     lo primero y los europeos, las dos cosas; así una liga débil no infla a su
+     campeón. Para que el punto de partida no sea igual para todas las ligas, la
+     temporada 2011-12 se recorre tres veces antes de empezar (esa temporada no se
+     usa ni para entrenar ni para evaluar).
+   - **Forma** en Europa y **forma en liga** (últimos 6 partidos), **días de
+     descanso**, **fuerza del país** en Europa, **experiencia** en la Champions,
+     **fase**, **campo neutral**, **ida o vuelta** y **resultado de la ida**.
+   - Los parámetros del Elo se ajustaron con las temporadas 2012-13 a 2016-17,
+     antes del periodo de prueba (`scripts/ajustar_elo.py`).
+3. **Modelos** (`clml/models.py`): regresión logística multinomial, regresión de
    Poisson para los goles de cada equipo y la media de ambos (el modelo final).
    En campo neutral se promedia la predicción con la de los equipos intercambiados,
    para que el orden en que se escriben no influya.
 
 ## Ideas para mejorarlo
 
-- Añadir las ligas nacionales (por ejemplo, con [football.json](https://github.com/openfootball/football.json))
-  para tener un Elo más completo.
-- Añadir cuotas de apuestas, tanto como variable como para comparar el modelo con el mercado.
-- Añadir datos de goles esperados (xG), lesiones y alineaciones.
+- Datos de jugadores (alineaciones, lesiones), por ejemplo con una API de pago.
+- Cuotas de apuestas de la Champions, para comparar el modelo con el mercado.
+- Datos de goles esperados (xG).

@@ -11,8 +11,10 @@ nombres parecidos (CSKA Sofia / CSKA 1948 Sofia, FK Žalgiris / Kauno
 
 from __future__ import annotations
 
+import csv
 import difflib
 import unicodedata
+from pathlib import Path
 
 # (país, nombre en el fichero) -> (país, nombre canónico)
 ALIASES: dict[tuple[str, str], tuple[str, str]] = {
@@ -100,3 +102,69 @@ def find_team(query: str, known_ids: list[str]) -> str:
         return names_only[close[0]]
     sugerencias = ", ".join(names_only[c] for c in close) or "ninguna"
     raise ValueError(f"No encuentro el equipo '{query}'. ¿Quizá: {sugerencias}?")
+
+
+# ------------------------------------------------------------------ ligas y copas
+MAPPING_FILE = Path(__file__).resolve().parent.parent / "data" / "equipos_mapeo.csv"
+
+
+def load_manual_mapping(path: Path = MAPPING_FILE) -> dict[tuple[str, str], str]:
+    """(país, nombre) -> nombre del equipo. "-" significa "no unir con ningún otro"."""
+    with open(path, encoding="utf-8") as f:
+        return {(r["pais"], r["nombre"]): r["equipo"] for r in csv.DictReader(f)}
+
+
+def resolve_domestic_names(eu_matches, dom_matches) -> dict[tuple[str, str, str], str]:
+    """Traduce los nombres de ligas y copas al nombre usado en Europa.
+
+    Orden: tabla manual (data/equipos_mapeo.csv) y, si no está, coincidencia
+    estricta (ver clml.similitud.strict_match). Lo que no coincide se queda
+    con su nombre: es un club que no ha jugado en Europa.
+    Modifica los partidos en el sitio y devuelve el mapeo usado.
+    """
+    from collections import defaultdict
+
+    from .similitud import strict_match
+
+    manual = load_manual_mapping()
+    eu_names: dict[str, set] = defaultdict(set)
+    for m in eu_matches:
+        eu_names[m.home_country].add(m.home)
+        eu_names[m.away_country].add(m.away)
+    fd_names: dict[str, set] = defaultdict(set)
+    for m in dom_matches:
+        if m.extra.get("source") == "football-data":
+            fd_names[m.home_country].update((m.home, m.away))
+
+    cache: dict[tuple[str, str, str], str] = {}
+
+    def to_eu(country: str, name: str) -> str:
+        key = (country, name)
+        if key in manual:
+            return name if manual[key] == "-" else manual[key]
+        return strict_match(name, eu_names[country]) or name
+
+    def resolve(source: str, country: str, name: str) -> str:
+        key = (source, country, name)
+        if key in cache:
+            return cache[key]
+        if source == "football-data" or (country, name) in manual:
+            out = to_eu(country, name)
+        else:
+            # openfootball: primero contra los nombres de liga de football-data
+            # (si el país los tiene), luego contra los europeos.
+            target = strict_match(name, fd_names[country] | eu_names[country])
+            if target is None:
+                out = name
+            elif target in fd_names[country]:
+                out = to_eu(country, target)
+            else:
+                out = target
+        cache[key] = out
+        return out
+
+    for m in dom_matches:
+        src = m.extra.get("source", "")
+        m.home = resolve(src, m.home_country, m.home)
+        m.away = resolve(src, m.away_country, m.away)
+    return cache

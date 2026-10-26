@@ -7,9 +7,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .features import build_dataset
-from .features import swap_sides
-from .models import Ensemble, PoissonGoals, full_logit, predict_proba
+from .features import build_dataset, swap_sides
+from .models import combined, predict_proba
 from .teams import find_team
 
 
@@ -38,10 +37,12 @@ class Predictor:
         warnings.filterwarnings("ignore", category=RuntimeWarning)
         self.df, self.fb = build_dataset()
         train = self.df[self.df.season >= first_train]
-        self.poisson = PoissonGoals()
-        self.model = Ensemble([full_logit(), self.poisson]).fit(train)
-        self.last_date = self.df["date"].max()
-        self.teams = sorted(self.fb.rating)
+        self.model = combined().fit(train)
+        self.poisson = self.model.models[1]
+        self.last_date = self.df["date"].max()          # último partido de Champions
+        self.data_date = self.fb.last_match_date        # último partido de cualquier competición
+        # Solo se pueden elegir equipos con historial europeo (el modelo usa su Elo europeo).
+        self.teams = sorted(self.fb.eu.rating)
 
     def team(self, query: str) -> str:
         return find_team(query, self.teams)
@@ -62,11 +63,11 @@ class Predictor:
         flat = [(f"{i}-{j}", float(mat[i, j])) for i in range(6) for j in range(6)]
         flat.sort(key=lambda x: -x[1])
         return Prediction(h, a, float(ph), float(pd_), float(pa), lh, la, flat[:5],
-                          feats["elo_home"], feats["elo_away"])
+                          self.fb.elo(h), self.fb.elo(a))
 
     def ranking(self, n: int = 20, min_matches: int = 6) -> pd.DataFrame:
-        """Ranking Elo de equipos con al menos `min_matches` partidos europeos recientes."""
-        rows = [(t, r, len(self.fb.form[t])) for t, r in self.fb.rating.items()]
+        """Ranking Elo (Europa + ligas) de equipos con al menos `min_matches` partidos europeos recientes."""
+        rows = [(t, self.fb.elo(t), len(self.fb.form[t])) for t in self.fb.eu.rating]
         df = pd.DataFrame(rows, columns=["equipo", "elo", "partidos_recientes"])
         df = df[df.partidos_recientes >= min_matches].sort_values("elo", ascending=False)
         df["elo"] = df["elo"].round().astype(int)
@@ -77,7 +78,7 @@ def format_prediction(p: Prediction) -> str:
     bar = lambda x: "█" * round(x * 30)
     lines = [
         f"{p.home}  vs  {p.away}",
-        f"  Elo: {p.elo_home:.0f} vs {p.elo_away:.0f}",
+        f"  Elo (Europa + ligas): {p.elo_home:.0f} vs {p.elo_away:.0f}",
         "",
         f"  Gana local     {p.p_home:6.1%}  {bar(p.p_home)}",
         f"  Empate         {p.p_draw:6.1%}  {bar(p.p_draw)}",

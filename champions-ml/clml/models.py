@@ -10,7 +10,7 @@ from sklearn.linear_model import LogisticRegression, PoissonRegressor
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from .features import FEATURES, swap_sides
+from .features import FEATURES, FEATURES_EU, swap_sides
 
 CLASSES = ["H", "D", "A"]  # orden de las columnas de probabilidad
 
@@ -70,18 +70,18 @@ def elo_logit():
                         ["elo_diff", "neutral"])
 
 
-def full_logit(C: float = 0.1):
+def full_logit(C: float = 0.1, features=None):
     return SklearnModel("Regresión logística (todas las variables)",
                         make_pipeline(StandardScaler(), LogisticRegression(C=C, max_iter=2000)),
-                        FEATURES)
+                        list(features or FEATURES))
 
 
-def gradient_boosting():
+def gradient_boosting(features=None):
     return SklearnModel("Gradient boosting",
                         HistGradientBoostingClassifier(max_depth=3, learning_rate=0.03, max_iter=200,
                                                        min_samples_leaf=40, l2_regularization=1.0,
                                                        random_state=0),
-                        FEATURES)
+                        list(features or FEATURES))
 
 
 class PoissonGoals:
@@ -93,18 +93,19 @@ class PoissonGoals:
     name = "Poisson (goles)"
     MAX_GOALS = 10
 
-    def __init__(self, alpha: float = 1.0):
+    def __init__(self, alpha: float = 1.0, features=None):
         self.alpha = alpha
+        self.features = list(features or FEATURES)
 
     def fit(self, df):
-        self.scaler = StandardScaler().fit(df[FEATURES].values)
-        X = self.scaler.transform(df[FEATURES].values)
+        self.scaler = StandardScaler().fit(df[self.features].values)
+        X = self.scaler.transform(df[self.features].values)
         self.mh = PoissonRegressor(alpha=self.alpha, max_iter=1000).fit(X, df["home_goals"])
         self.ma = PoissonRegressor(alpha=self.alpha, max_iter=1000).fit(X, df["away_goals"])
         return self
 
     def expected_goals(self, df):
-        X = self.scaler.transform(df[FEATURES].values)
+        X = self.scaler.transform(df[self.features].values)
         return self.mh.predict(X), self.ma.predict(X)
 
     def score_matrix(self, lam_h: float, lam_a: float) -> np.ndarray:
@@ -123,8 +124,10 @@ class Ensemble:
     """Media de las probabilidades de varios modelos."""
     name = "Combinado (logística + Poisson)"
 
-    def __init__(self, models):
+    def __init__(self, models, name: str | None = None):
         self.models = models
+        if name:
+            self.name = name
 
     def fit(self, df):
         for m in self.models:
@@ -135,9 +138,20 @@ class Ensemble:
         return np.mean([m.predict_proba(df) for m in self.models], axis=0)
 
 
-def all_models():
-    return [PriorModel(), elo_logit(), full_logit(), gradient_boosting(),
-            PoissonGoals(), Ensemble([full_logit(), PoissonGoals()])]
+def all_models(features=None):
+    return [PriorModel(), elo_logit(), full_logit(features=features), gradient_boosting(features),
+            PoissonGoals(features=features), combined(features)]
+
+
+def combined(features=None):
+    """El modelo final: media de la regresión logística y el modelo de goles."""
+    return Ensemble([full_logit(features=features), PoissonGoals(features=features)])
+
+
+def combined_europe_only():
+    """El modelo final de la versión anterior (sin ligas ni copas), para comparar."""
+    return Ensemble([full_logit(features=FEATURES_EU), PoissonGoals(features=FEATURES_EU)],
+                    name="Combinado, solo datos europeos (versión anterior)")
 
 
 class AlwaysHome:

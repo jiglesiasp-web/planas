@@ -35,6 +35,7 @@ def r(x, nd=6):
 
 
 def export_model(P: Predictor) -> dict:
+    assert list(P.model.models[0].features) == FEATURES == P.poisson.features
     logit_pipe = P.model.models[0].est
     sc, lr = logit_pipe[0], logit_pipe[-1]
     pois = P.poisson
@@ -48,10 +49,11 @@ def export_model(P: Predictor) -> dict:
         s = P.fb.team_snapshot(t, c)
         teams[t] = {
             "name": t.rsplit(" (", 1)[0], "country": c,
-            "elo": r(s["elo"], 3), "form_ppg": r(_nan0(s["form_ppg"])),
-            "form_gd": r(_nan0(s["form_gd"])), "ucl_exp": r(s["ucl_exp"]),
-            "country_ppg": r(s["country_ppg"]), "recent": s["form_n"],
-            "ucl_matches": P.fb.ucl_played[t], "current": t in current,
+            "elo": r(s["elo_eu"], 4), "elo_all": r(s["elo"], 4),
+            "form_ppg": r(_nan0(s["form_ppg"])), "form_gd": r(_nan0(s["form_gd"])),
+            "dom_ppg": r(_nan0(s["dom_ppg"])), "dom_gd": r(_nan0(s["dom_gd"])),
+            "ucl_exp": r(s["ucl_exp"]), "country_ppg": r(s["country_ppg"]),
+            "recent": s["form_n"], "ucl_matches": P.fb.ucl_played[t], "current": t in current,
         }
 
     preds = pd.read_csv(ROOT / "reports" / "predicciones_test.csv")
@@ -60,7 +62,8 @@ def export_model(P: Predictor) -> dict:
 
     return {
         "features": FEATURES,
-        "home_adv": P.fb.p.home_adv,
+        "home_adv": P.fb.eu.home_adv,
+        "home_adv_all": P.fb.p.home_adv,
         "stage_order": STAGE_ORDER,
         "knockout": sorted(KNOCKOUT),
         "logit": {
@@ -78,6 +81,7 @@ def export_model(P: Predictor) -> dict:
         "teams": teams,
         "meta": {
             "last_date": P.last_date.isoformat(),
+            "data_date": P.data_date.isoformat(),
             "last_season": last_season,
             "train_matches": int((P.df.season >= "2012-13").sum()),
             "test_matches": len(best),

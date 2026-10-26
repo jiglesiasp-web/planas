@@ -30,9 +30,13 @@ MATCH_RE = re.compile(
 #   "4-2 (1-0)"                              -> 90' = 4-2
 #   "4-1 a.e.t. (1-1, 0-1)"                  -> 90' = 1-1, prórroga 4-1
 #   "4-3 pen. 1-0 a.e.t. (1-0, 1-0)"         -> 90' = 1-0, prórroga 1-0, penaltis 4-3
+#   "4-3 pen. (2-2, 0-1)"                    -> 90' = 2-2, penaltis 4-3 (sin prórroga)
+#   "4-3 pen." o "2-1 a.e.t." sin paréntesis -> no se sabe el 90': se descarta
 PEN_RE = re.compile(r"^(\d+)-(\d+) pen\. (\d+)-(\d+) a\.e\.t\. \((\d+)-(\d+)")
 AET_RE = re.compile(r"^(\d+)-(\d+) a\.e\.t\. \((\d+)-(\d+)")
-FT_RE = re.compile(r"^(\d+)-(\d+)(?:\s|$)")
+# Penaltis sin prórroga (p. ej. Copa de la Liga inglesa): "4-3 pen. (2-2, 0-1)" -> 90' = 2-2
+PEN_NOAET_RE = re.compile(r"^(\d+)-(\d+) pen\. \((\d+)-(\d+)")
+FT_RE = re.compile(r"^(\d+)-(\d+)(?!\s+(?:pen|a\.e\.t))(?:\s|$)")
 
 
 @dataclass
@@ -68,6 +72,10 @@ def parse_score(text: str | None):
     if m:
         g = list(map(int, m.groups()))
         return g[4], g[5], True, (g[0], g[1])
+    m = PEN_NOAET_RE.match(text)
+    if m:
+        g = list(map(int, m.groups()))
+        return g[2], g[3], False, (g[0], g[1])
     m = AET_RE.match(text)
     if m:
         g = list(map(int, m.groups()))
@@ -124,7 +132,12 @@ def _infer_date(start_year: int, month: int, day: int, weekday: str,
     crecientes. Se usa el día de la semana para desambiguar y, si no basta,
     la cercanía a la fecha anterior.
     """
-    candidates = [dt.date(y, month, day) for y in (start_year, start_year + 1)]
+    candidates = []
+    for y in (start_year, start_year + 1):
+        try:
+            candidates.append(dt.date(y, month, day))
+        except ValueError:  # 29 de febrero en año no bisiesto
+            pass
     matching = [c for c in candidates if WEEKDAYS[c.weekday()] == weekday]
     if len(matching) == 1:
         return matching[0]

@@ -21,7 +21,8 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from clml.features import build_dataset  # noqa: E402
-from clml.models import AlwaysHome, all_models, metrics, walk_forward  # noqa: E402
+from clml.models import (AlwaysHome, all_models, combined_europe_only, metrics,  # noqa: E402
+                         walk_forward)
 
 REPORTS = ROOT / "reports"
 
@@ -29,12 +30,13 @@ REPORTS = ROOT / "reports"
 def main() -> None:
     df, _ = build_dataset()
     seasons = sorted(s for s in df.season.unique() if s >= "2017-18")
-    res, preds = walk_forward(df, seasons, make_models=lambda: [AlwaysHome()] + all_models())
+    res, preds = walk_forward(df, seasons,
+                              make_models=lambda: [AlwaysHome(), combined_europe_only()] + all_models())
 
     total = (preds.groupby("modelo")
              .apply(lambda g: pd.Series(metrics(g.result, g[["pH", "pD", "pA"]].values)))
              .sort_values("log_loss"))
-    best = total.index[0]
+    best = "Combinado (logística + Poisson)"  # el modelo que usa la app
     by_season = res.pivot(index="temporada", columns="modelo", values="acierto")
 
     bp = preds[preds.modelo == best].copy()
@@ -64,6 +66,8 @@ def main() -> None:
         "",
         "Métricas: **acierto** (más alto, mejor); **log loss**, **Brier** y **RPS** miden la calidad "
         "de las probabilidades (más bajo, mejor).",
+        "",
+        "Todos los modelos usan Europa + ligas + copas salvo el marcado como \"versión anterior\".",
         "",
         "## Resultado global",
         "",
