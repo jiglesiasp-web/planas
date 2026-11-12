@@ -78,8 +78,15 @@
       var el = doc.querySelector(id);
       if (!el) return;
       e.preventDefault();
-      var offset = el.classList.contains("vista") || el.classList.contains("hero") ? 0 : 56;
-      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: reduced ? "auto" : "smooth" });
+      var r = el.getBoundingClientRect(), top = r.top + window.scrollY;
+      // un capítulo del recorrido se centra en pantalla, que es donde la cámara se detiene
+      if (el.classList.contains("cap")) {
+        var card = el.querySelector(".cap-card");
+        top += (r.height - window.innerHeight) / 2;
+        // si la ficha no cabe entera, se deja su arranque justo bajo el menú
+        if (card && card.offsetHeight > window.innerHeight - 190) top = card.getBoundingClientRect().top + window.scrollY - 96;
+      }
+      window.scrollTo({ top: top, behavior: reduced ? "auto" : "smooth" });
       if (history.replaceState) history.replaceState(null, "", id);
     });
   }
@@ -198,7 +205,7 @@
       ticking = false;
       var max = root.scrollHeight - window.innerHeight;
       if (bar) bar.style.transform = "scaleX(" + (max > 0 ? Math.min(1, window.scrollY / max) : 0) + ")";
-      if (scene && hero) scene.setScroll(window.scrollY / Math.max(1, hero.offsetHeight));
+      if (scene && window.__PEGOLI__.updateTour) window.__PEGOLI__.updateTour();
     }
     window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
     update();
@@ -253,30 +260,51 @@
     }
     window.__PEGOLI__.scene = scene;
 
-    // qué ventana al 3D está en pantalla: hero, vista o ninguna (entonces no se dibuja)
-    var seen = { hero: true, vista: false };
-    function sync() {
-      scene.setActive(seen.hero || seen.vista);
-      var explore = seen.vista && !seen.hero;
-      scene.setMode(explore ? "explore" : "hero");
+    // Recorrido guiado: cada capítulo de la página tiene su punto de vista y su luz;
+    // al bajar, la cámara viaja de uno al siguiente y se detiene cuando el texto queda centrado.
+    var caps = $$("[data-cap]"), counter = $("[data-cap-counter]"), lastCap = -1, exploring = false;
+    function side(el, wideScreen) { return !wideScreen ? 0 : el.dataset.side === "right" ? -0.2 : el.dataset.side === "center" ? 0 : 0.2; }
+    function updateTour() {
+      if (!caps.length) return;
+      var mid = window.innerHeight * 0.5, idx = -1, t = 0, centers = [], i;
+      for (i = 0; i < caps.length; i++) { var r = caps[i].getBoundingClientRect(); centers.push(r.top + r.height / 2); }
+      for (i = 0; i < caps.length; i++) if (centers[i] <= mid) idx = i;
+      if (idx < 0) idx = 0;
+      else if (idx < caps.length - 1) t = (mid - centers[idx]) / Math.max(1, centers[idx + 1] - centers[idx]);
+      var k = Math.min(1, Math.max(0, (t - 0.24) / 0.52));
+      k = k * k * (3 - 2 * k);
+      var a = caps[idx], b = caps[Math.min(idx + 1, caps.length - 1)], wideScreen = window.innerWidth >= 900;
+      var oa = side(a, wideScreen), ob = side(b, wideScreen);
+      scene.setTour(a.dataset.view, b.dataset.view, k, oa + (ob - oa) * k, wideScreen ? 0.02 : 0.22);
+      var cur = k > 0.5 ? Math.min(idx + 1, caps.length - 1) : idx;
+      if (cur !== lastCap) {
+        lastCap = cur;
+        var el = caps[cur];
+        if (!exploring && el.dataset.time && el.dataset.time !== body.getAttribute("data-time")) setTime(el.dataset.time);
+        if (counter) counter.textContent = cur === 0 ? "" : ("0" + cur).slice(-2) + " / " + ("0" + (caps.length - 1)).slice(-2) + " · " + (el.dataset.name || "");
+      }
+    }
+    window.__PEGOLI__.updateTour = updateTour;
+    function sync(explore) {
+      exploring = explore;
+      scene.setActive(true);
+      scene.setMode(explore ? "explore" : "tour");
       if (vista) vista.classList.toggle("is-active", explore);
+      if (counter) counter.hidden = explore;
       if (!explore) {
+        lastCap = -1;
         $$("[data-views] button").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.view === "general" ? "true" : "false"); });
         var cap = $("[data-vista-caption]");
         if (cap && BRAND.captions) cap.textContent = BRAND.captions.inicio;
+        updateTour();
       }
     }
-    if ("IntersectionObserver" in window) {
-      var io = new IntersectionObserver(function (entries) {
-        entries.forEach(function (en) {
-          if (en.target === hero) seen.hero = en.isIntersecting;
-          if (en.target === vista) seen.vista = en.isIntersecting;
-        });
-        sync();
-      }, { threshold: 0, rootMargin: "0px 0px -22% 0px" });
-      if (hero) io.observe(hero);
-      if (vista) io.observe(vista);
+    if (vista && "IntersectionObserver" in window) {
+      new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) { sync(en.isIntersecting); });
+      }, { threshold: 0, rootMargin: "0px 0px -30% 0px" }).observe(vista);
     }
+    window.addEventListener("resize", updateTour);
 
     // paralaje con el ratón en el hero
     if (canHover && hero) {
@@ -360,7 +388,7 @@
         if (show !== (el._on === true)) { el._on = show; el.classList.toggle("is-on", show); el.tabIndex = show ? 0 : -1; }
       }
     });
-    sync();
+    sync(false);
   }
 
   function boot() {

@@ -18,6 +18,10 @@ Subir el contenido de esta carpeta (incluido `.htaccess`) a `public_html`. La ca
 es solo de desarrollo y no hace falta subirla. En cada nueva subida, cambiar el número de
 `?v=20261112` en `index.html` para que los navegadores no usen la versión antigua.
 
+## Cómo está montada la página
+
+La página es un recorrido: cada bloque `<section class="cap">` de `index.html` es una parada, con su punto de vista (`data-view`) y su luz (`data-time`). Al bajar, la cámara viaja de una parada a la siguiente. Para cambiar el orden o añadir una parada basta con mover o copiar un bloque; los puntos de vista están definidos al principio de `lib/scene3d.js` (`VIEWS`).
+
 ## Qué hay
 
 | archivo | para qué |

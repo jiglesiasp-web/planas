@@ -13,6 +13,7 @@ Ejecutar: `playwright test -c tools/e2e --trace off` desde la carpeta `el-pegoli
 | F02-H4 | vista 3D | happy | arrastrar con el ratón | la maqueta gira | e2e | pasa |
 | F02-E1 | vista 3D | edge: solo teclado | foco en la maqueta, flechas y + | gira y acerca | e2e | pasa |
 | F02-N1 | vista 3D | negative: sin WebGL | abrir sin soporte WebGL | imagen de la recreación y aviso; el resto de la web intacto | e2e | pasa |
+| F05-H1 | recorrido guiado | happy | bajar hasta «La carta» y luego hasta «Reservar» | la cámara entra al comedor y se sienta a la mesa; al llegar a «Reservar» la luz pasa a noche | e2e | pasa |
 | F03-H1 | horario | happy | ir a horario | tabla por temporada, dirección y enlace a Google Maps | e2e | pasa |
 | F04-H1 | navegación | happy | pulsar "Cocina" en el menú | la sección queda a la vista | e2e | pasa |
 | F04-E1 | navegación | edge: móvil 390 px | abrir menú, ir a horario | menú se cierra, sin desbordes horizontales | e2e | pasa |

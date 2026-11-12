@@ -97,6 +97,27 @@ test.describe("F02 explorar la vista 3D", () => {
   });
 });
 
+test.describe("F05 recorrido guiado", () => {
+  const goTo = (page, id) => page.evaluate((id) => {
+    document.documentElement.style.scrollBehavior = "auto";
+    const el = document.querySelector(id), r = el.getBoundingClientRect();
+    window.scrollTo(0, r.top + window.scrollY + (r.height - window.innerHeight) / 2);
+  }, id);
+
+  test("F05-H1 al bajar, la cámara entra al comedor y la luz cambia con el capítulo", async ({ page }) => {
+    await page.goto("/index.html");
+    await page.waitForFunction(() => window.__PEGOLI__ && window.__PEGOLI__.scene && window.__PEGOLI__.scene.stats().frames > 2);
+    expect((await sceneStats(page)).mode).toBe("tour");
+    await goTo(page, "#cocina");
+    await expect(page.getByRole("heading", { name: "Gamba roja de Dénia" })).toBeVisible();
+    // la mesa del comedor: dentro del edificio, a la altura de los ojos
+    await expect.poll(async () => { const c = (await sceneStats(page)).camera; return c[0] > 12 && c[0] < 25 && c[1] > 4.8 && c[1] < 6.5 && c[2] > -8 && c[2] < 3; }, { timeout: 240000 }).toBe(true);
+    await goTo(page, "#visita");
+    await expect(page.locator("body")).toHaveAttribute("data-time", "noche");
+    await expect.poll(async () => (await sceneStats(page)).time).toBe("noche");
+  });
+});
+
 test.describe("F03 horario y dirección", () => {
   test("F03-H1 horario, dirección y mapa", async ({ page }) => {
     await page.goto("/index.html");
@@ -112,7 +133,7 @@ test.describe("F03 horario y dirección", () => {
 test.describe("F04 navegación", () => {
   test("F04-H1 el menú lleva a cada sección", async ({ page }) => {
     await page.goto("/index.html");
-    await page.getByRole("navigation", { name: "Secciones", exact: true }).getByRole("link", { name: "Cocina" }).click();
+    await page.getByRole("navigation", { name: "Secciones", exact: true }).getByRole("link", { name: "Carta" }).click();
     await expect(page.getByRole("heading", { name: /De la lonja de Dénia/ })).toBeInViewport({ timeout: 20000 });
   });
 
@@ -134,7 +155,7 @@ test.describe("Robustez", () => {
     const ctx = await browser.newContext({ javaScriptEnabled: false });
     const page = await ctx.newPage();
     await page.goto("/index.html");
-    for (const name of [/El Pegolí/, /mismo mar/, /Date una vuelta/, /De la lonja de Dénia/, /tres luces/, /por teléfono/]) {
+    for (const name of [/El Pegolí/, /mismo mar/, /a un paso del agua/, /De la lonja de Dénia/, /Dénia al fondo/, /se cena fuera/, /por teléfono/, /a tu aire/]) {
       await expect(page.getByRole("heading", { name }).first()).toBeVisible();
     }
     await expect(page.getByRole("link", { name: "Llamar ahora" })).toBeVisible();

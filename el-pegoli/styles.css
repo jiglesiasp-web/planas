@@ -471,6 +471,45 @@ html:not(.js) .vista-tools, html:not(.js) .chips, html:not(.js) .vista-hint, htm
 .footer a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .footer-fuentes { grid-column: 1 / -1; padding-top: 22px; border-top: 1px solid var(--linea-noche); font-size: 0.82rem; }
 
+/* ---------- Recorrido guiado ---------- */
+.cap { position: relative; display: flex; align-items: center; min-height: 150vh; min-height: 150svh; padding: 14vh var(--gutter); pointer-events: none; }
+.cap[data-side="right"] { justify-content: flex-end; }
+.cap-card {
+  display: grid;
+  gap: 14px;
+  width: min(470px, 100%);
+  padding: 30px 30px 32px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--r-md);
+  background: rgba(255, 253, 248, 0.96);
+  color: var(--tinta);
+  box-shadow: var(--sombra-alta);
+  pointer-events: auto;
+}
+@supports ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
+  .cap-card { background: rgba(255, 253, 248, 0.88); -webkit-backdrop-filter: blur(18px) saturate(150%); backdrop-filter: blur(18px) saturate(150%); }
+}
+.cap-card--wide { width: min(600px, 100%); }
+.cap-card .title { font-size: clamp(1.9rem, 3.1vw, 2.7rem); line-height: 1.04; max-width: none; }
+.cap-card > p { font-size: 0.98rem; }
+.cap-cifras { display: grid; grid-template-columns: repeat(4, auto); gap: 6px 18px; justify-content: start; margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--linea); }
+.cap-cifras--km { grid-template-columns: repeat(3, auto); }
+.cap-cifras > div { display: flex; flex-direction: column-reverse; gap: 2px; }
+.cap-cifras dt { font-size: 0.74rem; line-height: 1.3; color: var(--tinta-suave); }
+.cap-cifras dd { font-family: var(--serif); font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.cap-cifras .cifra-texto { font-style: italic; font-size: 1.45rem; line-height: 1.38; color: var(--gamba); }
+.carta li { padding: 9px 0; border-top: 1px solid var(--linea); }
+.carta li:first-child { border-top: 0; padding-top: 0; }
+.carta h3 { font-family: var(--serif); font-weight: 400; font-size: 1.45rem; line-height: 1.1; }
+.carta p { margin-top: 3px; font-size: 0.92rem; line-height: 1.45; color: var(--tinta-suave); }
+.cap-card .telefono { font-size: clamp(2.8rem, 5.4vw, 4.2rem); }
+.cap-card .btn { justify-self: start; }
+.cap-card .horario td strong { font-size: 1.25rem; }
+.cap-dir { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding-top: 16px; border-top: 1px solid var(--linea); }
+.cap-dir address { flex: 1 1 100%; font-family: var(--serif); font-size: 1.35rem; line-height: 1.2; }
+.cap-counter { position: fixed; left: var(--gutter); bottom: 18px; z-index: 5; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 10px rgba(6, 26, 42, 0.85); pointer-events: none; }
+.cap-counter[hidden] { display: none; }
+
 /* ---------- 15. Movimiento ---------- */
 .js [data-reveal] { opacity: 0; transform: translateY(28px); transition: opacity 0.9s var(--ease), transform 1s var(--ease); transition-delay: var(--d, 0ms); }
 .js [data-reveal].is-revealed { opacity: 1; transform: none; }
@@ -494,6 +533,10 @@ html:not(.js) .vista-tools, html:not(.js) .chips, html:not(.js) .vista-hint, htm
   .distancias > div:nth-child(4) { padding-left: 0; border-left: 0; }
 }
 @media (max-width: 767px) {
+  .cap { align-items: flex-end; min-height: 165vh; min-height: 165svh; padding: 0 12px 6vh; }
+  .cap-card { width: 100%; padding: 22px 20px 24px; }
+  .cap-cifras { grid-template-columns: repeat(2, auto); }
+  .cap-counter { left: 14px; bottom: 8px; }
   body { font-size: 1rem; }
   .nav { padding-left: 18px; gap: 8px; }
   .nav-meta { display: none; }

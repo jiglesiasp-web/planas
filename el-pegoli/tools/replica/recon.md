@@ -75,6 +75,11 @@ F03 Consultar horario y cómo llegar
     S06 -> "Abrir en Google Maps"
     happy path clicks: 1
 
+F05 Recorrido guiado al hacer scroll
+    inicio -> llegada por mar (historia) -> terraza -> comedor -> mesa (carta) -> atardecer en la terraza -> Dénia al fondo -> vista aérea de noche (reservar) -> vista libre
+    happy path clicks: 0 (solo scroll)
+    edge: móvil (fichas abajo), movimiento reducido, sin WebGL (las fichas se leen igual sobre la imagen fija)
+
 F04 Navegar por secciones
     menú -> sección
     edge: móvil (menú a pantalla completa), tecla Escape

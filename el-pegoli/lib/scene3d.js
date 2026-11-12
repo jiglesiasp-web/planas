@@ -89,12 +89,15 @@
      look: la cámara queda fija y se gira la mirada, como a pie de terraza. */
   var VIEWS = {
     hero:    { pos: [-38, 12.5, -46], target: [7, 4, -7],     fov: 40, wide: true },
+    llegada: { pos: [-8, 5.5, -50],   target: [8, 4.6, -9],   fov: 40, wide: true },
+    mesa:    { pos: [19.9, 5.5, 0.1], target: [18.3, 5.0, -1.8], fov: 46, look: true },
+    ocaso:   { pos: [20.7, 4.6, -17.7], target: [-30, 4.2, -21], fov: 58, look: true },
     general: { pos: [60, 27, -56],    target: [5, 3, -6],     fov: 40, wide: true },
     mar:     { pos: [9, 3.4, -66],    target: [8, 5, -8],     fov: 36, wide: true },
     terraza: { pos: [0.9, 4.3, -16.3], target: [16, 3.8, -13.0], fov: 62, look: true },
     comedor: { pos: [17.2, 5.75, 0.9], target: [16.8, 5.3, -20], fov: 62, look: true },
     cala:    { pos: [41, 3.4, 21],    target: [24, 4.2, 1],   fov: 46 },
-    denia:   { pos: [19.6, 4.5, -10.6], target: [-2610, 60, -951], fov: 24, look: true }
+    denia:   { pos: [-2.4, 4.5, -14.5], target: [-2610, 60, -951], fov: 24, look: true }
   };
 
   var POINTS = {
@@ -1329,7 +1332,7 @@
     // palmeras del jardín de enfrente (posición aproximada sobre la ortofoto) y macetas de la terraza
     [[-31.5, 10, 6.5], [-27, 9, 7.2], [-29, 13.5, 5.8], [-18, 17.5, 7.5], [-15.5, 14.5, 6.4], [-10, 16, 7], [-5, 22, 6.2], [0, 23.5, 7.4], [4, 25.5, 6.6], [-20, 59.5, 7]]
       .forEach(function (p, i) { palm(p[0], p[1], p[2], (i % 2 ? 0.18 : -0.14)); });
-    [[8.2, -17.3], [16.6, -10.4], [12.6, -12.6], [19.8, -14.6]].forEach(function (p) {
+    [[8.2, -17.3], [16.6, -10.4], [12.6, -12.6], [20.4, -9.7]].forEach(function (p) {
       mesh(new THREE.CylinderGeometry(0.3, 0.24, 0.55, 14), M.plastico, p[0], Y_PT + 0.33, p[1], resto);
       palm(p[0], p[1], 1.5, 0.05, Y_PT + 0.5, 0.42);
     });
@@ -1446,6 +1449,18 @@
     function phiMin() { return look ? 1.05 : 0.3; }
     function phiMax() { return look ? 2.0 : 1.53; }
 
+    // recorrido guiado: la página indica entre qué dos puntos de vista está y cuánto ha avanzado
+    var tour = null, tourInit = false, tourFrames = 0;
+    var tourPos = new THREE.Vector3(), tourTgt = new THREE.Vector3(), pA = new THREE.Vector3(), pB = new THREE.Vector3(), tA = new THREE.Vector3(), tB = new THREE.Vector3();
+    function poseOf(name, pos, tgt) {
+      var v = VIEWS[name] || VIEWS.hero;
+      pos.fromArray(v.pos);
+      tgt.fromArray(v.target);
+      if (!v.look && v.wide && camera.aspect < 0.9) pos.sub(tgt).multiplyScalar(1.34).add(tgt);
+      tgt.sub(pos).normalize().multiplyScalar(25).add(pos); // el punto de mira siempre a la misma distancia
+      return v;
+    }
+
     function applyView(name) {
       var v = VIEWS[name];
       camPos.fromArray(v.pos);
@@ -1476,7 +1491,8 @@
       dirty = true;
     }
     function setOffsetGoal() {
-      if (mode === "hero") {
+      if (mode === "tour" && tour) { offsetGoal.x = tour.ox; offsetGoal.y = tour.oy; }
+      else if (mode === "hero") {
         if (size.w >= 900) { offsetGoal.x = 0.2; offsetGoal.y = 0.02; }
         else { offsetGoal.x = 0; offsetGoal.y = 0.25; }
       } else { offsetGoal.x = 0; offsetGoal.y = size.w >= 900 ? 0 : 0.03; }
@@ -1484,7 +1500,26 @@
 
     function updateCamera(dt, time, eco) {
       var k = 1 - Math.pow(0.0015, dt); // amortiguación independiente de los fps
-      if (viewTween) {
+      if (mode === "tour" && tour && !viewTween) {
+        var va = poseOf(tour.a, pA, tA), vb = poseOf(tour.b, pB, tB), e2 = tour.t;
+        var arc = va.look || vb.look ? 0 : Math.sin(Math.PI * e2) * Math.min(9, pA.distanceTo(pB) * 0.1);
+        pA.lerp(pB, e2);
+        pA.y += arc;
+        tA.lerp(tB, e2);
+        if (!tourInit) {
+          tourInit = true;
+          tourPos.copy(camera.position);
+          camera.getWorldDirection(tourTgt).multiplyScalar(25).add(camera.position);
+        }
+        var kt = 1 - Math.pow(0.03, dt);
+        tourPos.lerp(pA, kt);
+        tourTgt.lerp(tA, kt);
+        camera.position.copy(tourPos);
+        if (!reduced && !eco) camera.position.y += Math.sin(time * 0.35) * 0.04;
+        camera.lookAt(tourTgt);
+        fov = lerp(fov, lerp(va.fov, vb.fov, e2), kt);
+        if (tourFrames > 0) tourFrames--;
+      } else if (viewTween) {
         viewTween.t = Math.min(1, viewTween.t + dt / viewTween.dur);
         var e = easeInOut(viewTween.t), v = VIEWS[viewTween.name];
         var bx = v.pos[0], by = v.pos[1], bz = v.pos[2];
@@ -1634,7 +1669,7 @@
       else if (avg > 42) setLevel(1);
     }
     function isMoving() {
-      return dirty || !!viewTween || !!timeTween ||
+      return dirty || !!viewTween || !!timeTween || (mode === "tour" && tourFrames > 0) ||
         Math.abs(goal.theta - sph.theta) > 0.002 || Math.abs(goal.phi - sph.phi) > 0.002 || Math.abs(goal.r - sph.r) > 0.05 ||
         Math.abs(fovGoal - fov) > 0.05 ||
         Math.abs(offsetGoal.x - offset.x) > 0.002 || Math.abs(offsetGoal.y - offset.y) > 0.002;
@@ -1705,10 +1740,20 @@
         mode = m;
         dirty = true;
         setOffsetGoal();
-        if (m === "hero") { userTouched = false; goTo("hero", 1.8); }
+        if (m === "tour") { userTouched = false; viewTween = null; tourInit = false; tourFrames = 60; }
+        else if (m === "hero") { userTouched = false; goTo("hero", 1.8); }
         else goTo("general", 2.2);
       },
       getMode: function () { return mode; },
+      // a, b: nombres de punto de vista; t: avance 0..1; ox, oy: desplazamiento del encuadre para dejar sitio al texto
+      setTour: function (a, b, t, ox, oy) {
+        t = clamp(t, 0, 1);
+        if (tour && tour.a === a && tour.b === b && Math.abs(tour.t - t) < 0.0005 && tour.ox === ox && tour.oy === oy) return;
+        tour = { a: a, b: b, t: t, ox: ox || 0, oy: oy || 0 };
+        tourFrames = 60;
+        dirty = true;
+        if (mode === "tour") setOffsetGoal();
+      },
       setScroll: function (p) { p = clamp(p, 0, 1); if (p !== scrollP) { scrollP = p; dirty = true; } },
       setPointer: function (x, y) { pointer.x = x; pointer.y = y; },
       setActive: function (v) { v = !!v; if (v && !active) dirty = true; active = v; },
