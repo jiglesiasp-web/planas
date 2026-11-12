@@ -25,7 +25,7 @@ es solo de desarrollo y no hace falta subirla. En cada nueva subida, cambiar el 
 | `index.html` | todo el contenido (se lee aunque falle el JavaScript) |
 | `styles.css` | diseño |
 | `main.js` | interacción: menú, apariciones, luz del día, controles de la vista 3D |
-| `lib/scene3d.js` | la recreación 3D del restaurante (Three.js, hecha con formas simples) |
+| `lib/scene3d.js` | la recreación 3D del restaurante (Three.js): agua, cielo, texturas y modelo generados en el navegador, sin descargar imágenes |
 | `lib/three.min.js` | motor 3D, copia local |
 | `assets/img/` | imágenes de la recreación (se muestran mientras carga el 3D o si no hay WebGL) |
 | `tools/replica/` | mapa de fuentes, lista de funciones, tokens de diseño y plan de pruebas |
