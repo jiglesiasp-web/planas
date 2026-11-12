@@ -926,8 +926,8 @@
         g.computeVertexNormals();
         return g;
       }
-      mesh(build(rP, rU), pbr({ color: 0xdadada, map: OT.cerca, roughness: 1 }), 0, 0, 0, scene);
-      mesh(build(wP, wU, wC), pbr({ color: 0xffffff, map: T.fachada, vertexColors: true, roughness: 0.95 }), 0, 0, 0, scene);
+      mesh(build(rP, rU), pbr({ color: 0xdadada, map: OT.cerca, roughness: 1 }), 0, 0, 0, scene, { cast: false });
+      mesh(build(wP, wU, wC), pbr({ color: 0xffffff, map: T.fachada, vertexColors: true, roughness: 0.95 }), 0, 0, 0, scene, { cast: false });
     })();
 
     // arbolado: una copa irregular de varios lóbulos sobre cada mancha de árboles de la ortofoto
@@ -958,8 +958,8 @@
       g.setAttribute("color", new THREE.Float32BufferAttribute(C, 3));
       g.setIndex(I);
       g.computeVertexNormals();
-      mesh(g, M.pino, 0, 0, 0, scene);
-      var im = instanced(new THREE.CylinderGeometry(0.14, 0.2, 1, 5), M.tronco, trunks.length);
+      mesh(g, M.pino, 0, 0, 0, scene, { cast: false }); // quedan fuera de la zona de sombras
+      var im = instanced(new THREE.CylinderGeometry(0.14, 0.2, 1, 5), M.tronco, trunks.length, scene, false);
       trunks.forEach(function (t, i) {
         d.position.set(t[0], t[1] + t[3] / 2 - 0.2, t[2]);
         d.scale.set(1, t[3] + 0.4, 1);
@@ -1479,6 +1479,8 @@
       viewTween = { t: 0, dur: dur || 2.1, name: name, pos: camera.position.clone(), tgt: camera.position.clone().addScaledVector(dir, 40), fov: fov };
     }
     applyView("hero");
+    camera.position.copy(camPos); // la cámara arranca ya en la vista de portada
+    camera.lookAt(camTgt);
 
     var size = { w: 1, h: 1 };
     function resize() {
@@ -1575,6 +1577,8 @@
     var post = null;
     (function () {
       if (isMobile || options.noPost || !renderer.capabilities.isWebGL2) return;
+      // hace falta poder dibujar sobre texturas de coma flotante; si no, se dibuja directo
+      if (!renderer.extensions.has("EXT_color_buffer_float") && !renderer.extensions.has("EXT_color_buffer_half_float")) return;
       var rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
       rt.depthTexture = new THREE.DepthTexture(4, 4);
       var mat = new THREE.ShaderMaterial({
@@ -1622,18 +1626,31 @@
     })();
     function renderScene() {
       if (post && quality.level === 0) {
-        renderer.getDrawingBufferSize(post.size);
-        if (post.rt.width !== post.size.x || post.rt.height !== post.size.y) post.rt.setSize(post.size.x, post.size.y);
-        renderer.setRenderTarget(post.rt);
-        renderer.render(scene, camera);
-        renderer.setRenderTarget(null);
-        post.mat.uniforms.uProj.value.copy(camera.projectionMatrix);
-        post.mat.uniforms.uInvProj.value.copy(camera.projectionMatrixInverse);
-        post.mat.uniforms.uRes.value.copy(post.size);
-        renderer.render(post.scene, post.cam);
-      } else {
-        renderer.render(scene, camera);
+        try {
+          renderer.getDrawingBufferSize(post.size);
+          if (post.rt.width !== post.size.x || post.rt.height !== post.size.y) post.rt.setSize(post.size.x, post.size.y);
+          renderer.setRenderTarget(post.rt);
+          if (!post.checked) {
+            // algunos equipos aceptan crear el búfer pero no pueden usarlo: se comprueba una vez
+            var gl = renderer.getContext();
+            post.checked = true;
+            if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error("búfer de posprocesado no disponible");
+          }
+          renderer.render(scene, camera);
+          renderer.setRenderTarget(null);
+          post.mat.uniforms.uProj.value.copy(camera.projectionMatrix);
+          post.mat.uniforms.uInvProj.value.copy(camera.projectionMatrixInverse);
+          post.mat.uniforms.uRes.value.copy(post.size);
+          renderer.render(post.scene, post.cam);
+          return;
+        } catch (e) {
+          // sin posprocesado la escena se ve igual, solo sin el sombreado de contacto
+          renderer.setRenderTarget(null);
+          post = null;
+          if (window.console) console.warn("[vista 3D] posprocesado desactivado:", e.message);
+        }
       }
+      renderer.render(scene, camera);
     }
 
     /* ================= bucle ================= */
