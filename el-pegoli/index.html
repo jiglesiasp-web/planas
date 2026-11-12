@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>El Pegolí · Restaurante en Les Rotes, Dénia · Desde 1943</title>
+  <meta name="description" content="El Pegolí, casa familiar en Les Rotes (Dénia) desde 1943. Arròs a banda, gamba roja y pescado de la lonja de Dénia, con terraza sobre el mar. Reservas por teléfono: 965 781 035." />
+  <meta name="theme-color" content="#0a2233" />
+  <meta property="og:type" content="restaurant" />
+  <meta property="og:locale" content="es_ES" />
+  <meta property="og:title" content="El Pegolí · Les Rotes, Dénia · Desde 1943" />
+  <meta property="og:description" content="Arròs a banda, gamba roja de Dénia y una terraza sobre el mar. Recorre el restaurante en 3D." />
+  <meta property="og:image" content="assets/img/escena-dia.webp" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="preload" as="image" href="assets/img/escena-dia.webp" />
+  <link rel="stylesheet" href="styles.css?v=20261112" />
+
+  <script>document.documentElement.className += " js";</script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    "name": "El Pegolí",
+    "foundingDate": "1943",
+    "servesCuisine": ["Arroces", "Marisco", "Pescado", "Cocina mediterránea"],
+    "telephone": "+34 965 781 035",
+    "acceptsReservations": "Por teléfono",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Carrer Fènix, 13 · Les Rotes",
+      "postalCode": "03700",
+      "addressLocality": "Dénia",
+      "addressRegion": "Alicante",
+      "addressCountry": "ES"
+    },
+    "sameAs": ["https://www.instagram.com/elpegolidenia"]
+  }
+  </script>
+</head>
+<body data-time="dia">
+  <a class="skip" href="#contenido">Saltar al contenido</a>
+
+  <!-- Cortina de entrada: se retira sola aunque falle el JS -->
+  <div class="splash" data-splash aria-hidden="true">
+    <div class="splash-inner">
+      <span class="splash-name">El Pegolí</span>
+      <span class="splash-meta">Dénia · 1943</span>
+    </div>
+  </div>
+
+  <div class="progress" data-progress aria-hidden="true"></div>
+
+  <!-- Escenario 3D fijo: debajo hay una imagen de la misma recreación por si no hay WebGL -->
+  <div class="stage" data-stage aria-hidden="true"></div>
+
+  <header class="nav" data-nav>
+    <a class="nav-brand" href="#inicio" aria-label="El Pegolí, inicio">
+      <span class="nav-name">El Pegolí</span>
+      <span class="nav-meta">Dénia · 1943</span>
+    </a>
+    <nav class="nav-links" aria-label="Secciones">
+      <a href="#historia">Historia</a>
+      <a href="#vista-3d">Vista 3D</a>
+      <a href="#cocina">Cocina</a>
+      <a href="#entorno">Entorno</a>
+      <a href="#visita">Horario</a>
+    </nav>
+    <a class="btn btn-accent nav-cta" href="tel:+34965781035">Reservar</a>
+    <button class="nav-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu-movil">
+      <span class="sr-only">Abrir menú</span>
+      <span class="nav-toggle-bars" aria-hidden="true"></span>
+    </button>
+  </header>
+
+  <div class="menu" id="menu-movil" data-menu hidden>
+    <nav aria-label="Secciones (móvil)">
+      <a href="#historia">Historia</a>
+      <a href="#vista-3d">Vista 3D</a>
+      <a href="#cocina">Cocina</a>
+      <a href="#entorno">Entorno</a>
+      <a href="#visita">Horario y reservas</a>
+    </nav>
+    <a class="btn btn-accent" href="tel:+34965781035">Llamar · 965 781 035</a>
+  </div>
+
+  <main id="contenido">
+
+    <!-- ============ INICIO ============ -->
+    <section class="hero" id="inicio" data-hero>
+      <div class="hero-scrim" aria-hidden="true"></div>
+      <div class="hero-content">
+        <p class="kicker">Les Rotes · Dénia · Desde 1943</p>
+        <h1 class="hero-title">El Pegolí</h1>
+        <p class="hero-lead">Arròs a banda y gamba roja, <em>frente al mar</em>.</p>
+        <p class="hero-text">Casa familiar sobre las rocas de Les Rotes. Pescado y marisco de la lonja de Dénia, arroces y una terraza abierta al Mediterráneo.</p>
+        <div class="hero-actions">
+          <a class="btn btn-accent btn-lg" href="tel:+34965781035">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>
+            Reservar · 965 781 035
+          </a>
+          <a class="btn btn-glass btn-lg" href="#vista-3d">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 8v8l9 5 9-5V8l-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+            Ver el restaurante en 3D
+          </a>
+        </div>
+      </div>
+
+      <div class="hero-side">
+        <div class="seg" role="group" aria-label="Luz de la recreación 3D" data-time-group>
+          <button type="button" data-time="dia" aria-pressed="true">Mediodía</button>
+          <button type="button" data-time="atardecer" aria-pressed="false">Atardecer</button>
+          <button type="button" data-time="noche" aria-pressed="false">Noche</button>
+        </div>
+        <p class="hero-note">Recreación 3D orientativa</p>
+      </div>
+
+      <a class="hero-scroll" href="#historia" aria-label="Bajar a la historia">
+        <span></span>
+      </a>
+    </section>
+
+    <!-- ============ CINTA ============ -->
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker-track">
+        <span>Gamba roja de Dénia</span><i>✦</i><span>Arròs a banda</span><i>✦</i><span>Lonja de Dénia</span><i>✦</i><span>Les Rotes</span><i>✦</i><span>Desde 1943</span><i>✦</i><span>Terraza sobre el mar</span><i>✦</i>
+        <span>Gamba roja de Dénia</span><i>✦</i><span>Arròs a banda</span><i>✦</i><span>Lonja de Dénia</span><i>✦</i><span>Les Rotes</span><i>✦</i><span>Desde 1943</span><i>✦</i><span>Terraza sobre el mar</span><i>✦</i>
+      </div>
+    </div>
+
+    <!-- ============ HISTORIA ============ -->
+    <section class="sheet historia" id="historia">
+      <div class="wrap">
+        <div class="historia-head">
+          <p class="kicker" data-reveal>Historia</p>
+          <h2 class="title" data-split>Más de ochenta años mirando al <em>mismo mar</em>.</h2>
+          <span class="historia-year" aria-hidden="true">1943</span>
+        </div>
+
+        <div class="historia-grid">
+          <div class="historia-text">
+            <p class="lead" data-reveal>El Pegolí abrió en 1943 como casa de comidas familiar en Les Rotes, la costa de roca de Dénia.</p>
+            <p data-reveal>Pepe Piera —«El Pegolí», porque era de Pego— hizo de ella una referencia del arròs a banda y fue de los primeros en dar a conocer la gamba roja de Dénia.</p>
+            <p data-reveal>Hoy siguen al frente la tercera y la cuarta generación de la familia Piera Sendra.</p>
+
+            <figure class="cita" data-reveal>
+              <blockquote>«Fue el maestro de tantos en la forma de cocinar la gamba roja de Dénia.»</blockquote>
+              <figcaption>Guía Repsol, sobre Pepe «El Pegolí»</figcaption>
+            </figure>
+          </div>
+
+          <ol class="hitos" aria-label="Hitos de la casa">
+            <li data-reveal>
+              <span class="hito-fecha">1943</span>
+              <div>
+                <h3>Abre la casa</h3>
+                <p>Una casa de comidas familiar junto al mar, en Les Rotes.</p>
+              </div>
+            </li>
+            <li data-reveal>
+              <span class="hito-fecha">Pepe Piera</span>
+              <div>
+                <h3>El arròs a banda y la gamba roja</h3>
+                <p>El hijo de los fundadores convierte El Pegolí en una referencia de los dos.</p>
+              </div>
+            </li>
+            <li data-reveal>
+              <span class="hito-fecha">Hoy</span>
+              <div>
+                <h3>Tercera y cuarta generación</h3>
+                <p>La familia Piera Sendra sigue en la sala y en la cocina.</p>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <dl class="cifras">
+          <div data-reveal>
+            <dt>Año de apertura</dt>
+            <dd><span data-count="1943" data-count-from="1900">1943</span></dd>
+          </div>
+          <div data-reveal>
+            <dt>Años frente al mar</dt>
+            <dd><span data-count="83" data-years-since="1943">83</span></dd>
+          </div>
+          <div data-reveal>
+            <dt>Generaciones de la misma familia</dt>
+            <dd><span data-count="4">4</span></dd>
+          </div>
+          <div data-reveal>
+            <dt>Guía Repsol</dt>
+            <dd class="cifra-texto">Recomendado</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ============ VISTA 3D ============ -->
+    <section class="vista" id="vista-3d" data-vista aria-labelledby="vista-title">
+      <div class="vista-sticky">
+        <div class="vista-drag" data-drag tabindex="0" role="img"
+             aria-label="Recreación 3D interactiva del restaurante: comedor acristalado, terraza con balaustrada blanca y sombrillas de brezo sobre las rocas. Arrastra o usa las flechas para girar; más y menos para acercar."></div>
+
+        <div class="vista-head">
+          <p class="kicker">Vista 3D</p>
+          <h2 class="title" id="vista-title">Date una vuelta antes de venir.</h2>
+          <p class="vista-sub" data-vista-caption aria-live="polite">Arrastra para girar. Elige un punto de vista o cambia la luz.</p>
+        </div>
+
+        <div class="vista-tools">
+          <div class="seg" role="group" aria-label="Luz del día" data-time-group>
+            <button type="button" data-time="dia" aria-pressed="true">Mediodía</button>
+            <button type="button" data-time="atardecer" aria-pressed="false">Atardecer</button>
+            <button type="button" data-time="noche" aria-pressed="false">Noche</button>
+          </div>
+          <div class="zoom" role="group" aria-label="Zoom">
+            <button type="button" data-zoom="in" aria-label="Acercar">+</button>
+            <button type="button" data-zoom="out" aria-label="Alejar">−</button>
+          </div>
+        </div>
+
+        <!-- Etiquetas ancladas a la maqueta -->
+        <div class="hotspots" data-hotspots>
+          <button type="button" class="hotspot" data-point="terraza" data-view="terraza"><span>La terraza</span></button>
+          <button type="button" class="hotspot" data-point="comedor" data-view="comedor"><span>El comedor</span></button>
+          <button type="button" class="hotspot" data-point="sombrillas" data-view="sombrillas"><span>Sombrillas de brezo</span></button>
+          <button type="button" class="hotspot" data-point="rocas" data-view="rocas"><span>Las rocas</span></button>
+          <button type="button" class="hotspot hotspot-far" data-point="denia" data-view="denia"><span>Dénia</span></button>
+          <button type="button" class="hotspot hotspot-far" data-point="montgo" data-view="general"><span>El Montgó</span></button>
+        </div>
+
+        <div class="vista-bottom">
+          <div class="chips" role="group" aria-label="Puntos de vista" data-views>
+            <button type="button" data-view="general" aria-pressed="true">General</button>
+            <button type="button" data-view="terraza" aria-pressed="false">La terraza</button>
+            <button type="button" data-view="comedor" aria-pressed="false">El comedor</button>
+            <button type="button" data-view="sombrillas" aria-pressed="false">Sombrillas</button>
+            <button type="button" data-view="rocas" aria-pressed="false">Desde las rocas</button>
+            <button type="button" data-view="denia" aria-pressed="false">Dénia al fondo</button>
+          </div>
+          <p class="vista-note">Recreación 3D orientativa, hecha a partir de fotografías públicas. No es un plano a escala.</p>
+        </div>
+
+        <p class="vista-hint" data-vista-hint aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M8 12H3m0 0 3-3m-3 3 3 3M16 12h5m0 0-3-3m3 3-3 3"/><circle cx="12" cy="12" r="2.2"/></svg>
+          Arrastra para girar
+        </p>
+
+        <p class="vista-fallback">Tu navegador no puede mostrar la vista 3D interactiva. Esta es una imagen de la misma recreación.</p>
+      </div>
+    </section>
+
+    <!-- ============ COCINA ============ -->
+    <section class="sheet cocina" id="cocina">
+      <div class="wrap">
+        <div class="cocina-head">
+          <p class="kicker" data-reveal>Cocina</p>
+          <h2 class="title" data-split>De la lonja de Dénia <em>a la mesa</em>.</h2>
+          <p class="lead" data-reveal>Pescado, marisco y arroz. La carta se ordena como siempre: para abrir el apetito, del mar, de la tierra, los arroces y los postres.</p>
+        </div>
+
+        <div class="bento">
+          <article class="plato plato-arroz" data-tilt data-reveal>
+            <svg class="plato-icon" viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32" cy="34" rx="24" ry="9"/><path d="M8 34v3c0 5 11 9 24 9s24-4 24-9v-3M4 33h6M54 33h6"/><path d="M22 33c2-2 4-2 6 0M34 31c2-2 4-2 6 0M28 37c2-2 4-2 6 0"/></svg>
+            <p class="plato-tag">Los arroces · secos y melosos</p>
+            <h3>Arròs a banda</h3>
+            <p>El plato de la casa. Se termina en la sala, a la vista de la mesa.</p>
+          </article>
+
+          <article class="plato plato-gamba" data-tilt data-reveal>
+            <svg class="plato-icon" viewBox="0 0 64 64" aria-hidden="true"><path d="M46 14c-14-3-28 5-30 19-1 9 5 17 14 17 7 0 12-5 12-11 0-5-4-9-9-9-4 0-7 3-7 7"/><path d="M46 14l10-6M46 14l11 1M46 14l8 7M18 40l-8 4M20 46l-6 7M27 50l-2 8"/></svg>
+            <p class="plato-tag">Del mar · marisco</p>
+            <h3>Gamba roja de Dénia</h3>
+            <p>Llega de la lonja de Dénia. Esta casa lleva décadas cocinándola.</p>
+          </article>
+
+          <article class="plato" data-tilt data-reveal>
+            <svg class="plato-icon" viewBox="0 0 64 64" aria-hidden="true"><path d="M6 32c8-12 22-16 34-10 6 3 10 7 12 10-2 3-6 7-12 10-12 6-26 2-34-10z"/><path d="M52 32l8-8v16l-8-8z"/><circle cx="18" cy="29" r="1.6"/></svg>
+            <p class="plato-tag">Del mar · pescado</p>
+            <h3>Pescado de lonja</h3>
+            <p>Lo que entra cada día. Por ejemplo, sepionets a la plancha.</p>
+          </article>
+
+          <article class="plato" data-tilt data-reveal>
+            <svg class="plato-icon" viewBox="0 0 64 64" aria-hidden="true"><path d="M10 44h44M14 44c0-12 8-20 18-20s18 8 18 20"/><path d="M32 24v-6M24 18h16"/></svg>
+            <p class="plato-tag">Para abrir el apetito</p>
+            <h3>Salazones</h3>
+            <p>Huevas de atún de elaboración artesana y ensalada de pimientos.</p>
+          </article>
+
+          <article class="plato" data-tilt data-reveal>
+            <svg class="plato-icon" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="20"/><path d="M32 12v40M12 32h40M18 18l28 28M46 18 18 46"/></svg>
+            <p class="plato-tag">Los postres</p>
+            <h3>Sorbetes de cítricos</h3>
+            <p>Para cerrar. Después, café, mistela y dátiles.</p>
+          </article>
+
+          <article class="plato plato-tierra" data-tilt data-reveal>
+            <svg class="plato-icon" viewBox="0 0 64 64" aria-hidden="true"><path d="M20 10v44M20 10c8 6 8 18 0 22M40 10v16c0 4 2 6 4 6s4-2 4-6V10M44 32v22"/></svg>
+            <p class="plato-tag">Y además</p>
+            <h3>De la tierra y bodega</h3>
+            <p>La carta tiene también platos de tierra. Pregunta en sala por los vinos.</p>
+          </article>
+        </div>
+
+        <p class="nota" data-reveal>Platos citados en la carta del restaurante y en reseñas publicadas (Directo al Paladar, Guía Repsol). La oferta cambia con la lonja y la temporada. El restaurante no publica precios; Guía Repsol sitúa el precio medio en más de 60 € por persona.</p>
+
+        <div class="eventos" data-reveal>
+          <h3>Celebraciones</h3>
+          <p>Bodas, comuniones y menús para grupos. Se organizan por teléfono.</p>
+          <a class="btn btn-ink" href="tel:+34965781035">Preguntar · 965 781 035</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ENTORNO ============ -->
+    <section class="entorno" id="entorno">
+      <div class="wrap">
+        <div class="entorno-head">
+          <p class="kicker" data-reveal>Entorno</p>
+          <h2 class="title" data-split>Les Rotes: la misma terraza, <em>tres luces</em>.</h2>
+          <p class="lead" data-reveal>El restaurante está al final de Dénia, donde la costa se vuelve roca, con el Montgó a la espalda y el castillo de Dénia al otro lado del agua.</p>
+        </div>
+
+        <div class="luces">
+          <figure class="luz" data-reveal>
+            <button type="button" data-goto-time="dia" aria-label="Ver la vista 3D a mediodía">
+              <img src="assets/img/luz-dia.webp" alt="Recreación 3D del restaurante a mediodía: terraza blanca con sillas azules sobre el mar" width="1200" height="1500" loading="lazy" decoding="async" />
+            </button>
+            <figcaption><strong>Mediodía</strong>Comidas de martes a domingo, de 12:00 a 16:00.</figcaption>
+          </figure>
+          <figure class="luz" data-reveal>
+            <button type="button" data-goto-time="atardecer" aria-label="Ver la vista 3D al atardecer">
+              <img src="assets/img/luz-atardecer.webp" alt="Recreación 3D del restaurante al atardecer, con el sol bajando hacia Dénia" width="1200" height="1500" loading="lazy" decoding="async" />
+            </button>
+            <figcaption><strong>Atardecer</strong>El sol baja por el lado de Dénia.</figcaption>
+          </figure>
+          <figure class="luz" data-reveal>
+            <button type="button" data-goto-time="noche" aria-label="Ver la vista 3D de noche">
+              <img src="assets/img/luz-noche.webp" alt="Recreación 3D del restaurante de noche, con los faroles de la terraza encendidos" width="1200" height="1500" loading="lazy" decoding="async" />
+            </button>
+            <figcaption><strong>Noches de verano</strong>En julio y agosto, cenas en la terraza jueves, viernes y sábado.</figcaption>
+          </figure>
+        </div>
+        <p class="nota nota-clara" data-reveal>Imágenes de la recreación 3D, no fotografías del local.</p>
+
+        <dl class="distancias" data-reveal>
+          <div><dt>Centro de Dénia</dt><dd>2 km</dd></div>
+          <div><dt>Alicante</dt><dd>96 km</dd></div>
+          <div><dt>València</dt><dd>109 km</dd></div>
+          <div><dt>Aeropuerto de Alicante</dt><dd>108 km</dd></div>
+          <div><dt>Aeropuerto de València</dt><dd>123 km</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ============ HORARIO Y RESERVAS ============ -->
+    <section class="sheet visita" id="visita">
+      <div class="wrap">
+        <div class="visita-head">
+          <p class="kicker" data-reveal>Horario y reservas</p>
+          <h2 class="title" data-split>La mesa se reserva <em>por teléfono</em>.</h2>
+        </div>
+
+        <div class="visita-grid">
+          <div class="card card-reserva" data-reveal>
+            <h3>Reservas</h3>
+            <a class="telefono" href="tel:+34965781035">965 781 035</a>
+            <p>El restaurante no admite reservas online. Llama y te atienden directamente.</p>
+            <a class="btn btn-accent btn-lg" href="tel:+34965781035">Llamar ahora</a>
+          </div>
+
+          <div class="card" data-reveal>
+            <h3>Horario</h3>
+            <table class="horario">
+              <caption class="sr-only">Horario de apertura por temporada</caption>
+              <tbody>
+                <tr>
+                  <th scope="row">Octubre a junio</th>
+                  <td>Martes a domingo<br /><strong>12:00 – 16:00</strong><br /><span>Solo comidas</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Julio y agosto</th>
+                  <td>Martes a domingo<br /><strong>12:00 – 16:00</strong><br />Cenas jueves, viernes y sábado<br /><strong>20:30 – 22:30</strong><br /><span>Las cenas, en la terraza</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Vacaciones</th>
+                  <td>Cerrado desde antes de Navidad<br />hasta el 1 de febrero</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="nota">Horario publicado por el restaurante. Confírmalo por teléfono antes de venir.</p>
+          </div>
+
+          <div class="card" data-reveal>
+            <h3>Cómo llegar</h3>
+            <address>
+              Carrer Fènix, 13<br />
+              Les Rotes<br />
+              03700 Dénia (Alicante)
+            </address>
+            <a class="btn btn-ink" href="https://www.google.com/maps/search/?api=1&amp;query=Restaurante+El+Pegol%C3%AD%2C+Carrer+F%C3%A8nix+13%2C+D%C3%A9nia" target="_blank" rel="noopener">Abrir en Google Maps</a>
+            <a class="enlace" href="https://www.instagram.com/elpegolidenia" target="_blank" rel="noopener">Instagram · @elpegolidenia</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-grid">
+      <div>
+        <p class="footer-name">El Pegolí</p>
+        <p>Carrer Fènix, 13 · Les Rotes · 03700 Dénia</p>
+        <p><a href="tel:+34965781035">+34 965 781 035</a></p>
+      </div>
+      <nav aria-label="Pie">
+        <a href="#historia">Historia</a>
+        <a href="#vista-3d">Vista 3D</a>
+        <a href="#cocina">Cocina</a>
+        <a href="#entorno">Entorno</a>
+        <a href="#visita">Horario y reservas</a>
+      </nav>
+      <p class="footer-fuentes">Datos tomados de la web del restaurante, Guía Repsol y Directo al Paladar. La vista 3D es una recreación orientativa.</p>
+    </div>
+  </footer>
+
+  <script defer src="lib/three.min.js?v=20261112"></script>
+  <script defer src="lib/scene3d.js?v=20261112"></script>
+  <script defer src="lib/manifest.js?v=20261112"></script>
+  <script defer src="main.js?v=20261112"></script>
+</body>
+</html>

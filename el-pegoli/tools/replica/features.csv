@@ -1,0 +1,22 @@
+feature,area,priority,original,clone,notes
+Nombre y año de apertura visibles,inicio,must,yes,yes,
+Teléfono de reservas con enlace de llamada,reservas,must,yes,yes,el original lo muestra como texto
+Aviso de que no hay reserva online,reservas,must,yes,yes,
+Horario por temporada,horario,must,yes,yes,publicado por el restaurante; a confirmar
+Cierre por vacaciones,horario,must,yes,yes,
+Dirección y enlace al mapa,contacto,must,yes,yes,abre búsqueda en Google Maps
+Secciones de la carta,cocina,must,yes,yes,sin precios (no publicados)
+Historia de la casa,historia,must,yes,yes,solo datos con fuente
+Diseño adaptable a móvil,general,must,partial,yes,
+Vista 3D interactiva del restaurante,vista 3D,should,no,yes,recreación orientativa
+Cambio de luz (mediodía/atardecer/noche),vista 3D,should,no,yes,
+Puntos de vista guiados y etiquetas,vista 3D,should,no,yes,
+Celebraciones y grupos,eventos,should,yes,yes,solo mención; se gestiona por teléfono
+Distancias a Dénia y aeropuertos,entorno,should,yes,yes,cifras del sitio original
+Enlace a Instagram,contacto,should,yes,yes,
+Funciona sin JavaScript,robustez,could,yes,yes,
+Funciona sin WebGL (imagen fija),robustez,could,n/a,yes,
+Galería de fotos del local,entorno,must,yes,skip,las fotos son del restaurante; añadir las propias en una revisión
+Carta con platos y precios,cocina,should,no,skip,no publicada; pedirla al restaurante
+Reserva online,reservas,could,no,skip,el restaurante no la admite
+Blog y enlaces de prensa,contenido,could,yes,skip,fuera del alcance de esta versión
