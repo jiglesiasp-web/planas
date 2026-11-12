@@ -2,4 +2,5 @@
 test-results/
 tools/e2e/test-results/
 tools/capturas/*.png
+tools/vista-previa.html
 node_modules/
