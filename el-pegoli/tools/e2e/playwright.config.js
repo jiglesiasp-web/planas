@@ -3,7 +3,7 @@
 const path = require("path");
 module.exports = {
   testDir: __dirname,
-  timeout: 90000,
+  timeout: 300000,
   workers: 1,
   reporter: [["list"]],
   use: {

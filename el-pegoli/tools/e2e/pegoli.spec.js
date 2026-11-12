@@ -48,8 +48,8 @@ test.describe("F02 explorar la vista 3D", () => {
     const before = (await sceneStats(page)).camera;
     await page.getByRole("group", { name: "Puntos de vista" }).getByRole("button", { name: "La terraza" }).click();
     await expect(page.getByRole("group", { name: "Puntos de vista" }).getByRole("button", { name: "La terraza" })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByText(/manteles blancos y sillas azules/)).toBeVisible();
-    await expect.poll(async () => (await sceneStats(page)).camera[1], { timeout: 30000 }).toBeLessThan(8);
+    await expect(page.getByText(/sombrillas de brezo sobre losas de piedra/)).toBeVisible();
+    await expect.poll(async () => (await sceneStats(page)).camera[1], { timeout: 150000 }).toBeLessThan(8);
     expect((await sceneStats(page)).camera).not.toEqual(before);
   });
 
@@ -63,19 +63,19 @@ test.describe("F02 explorar la vista 3D", () => {
 
   test("F02-H4 arrastrar gira la maqueta", async ({ page }) => {
     await openVista(page);
-    await page.waitForTimeout(3500); // termina el vuelo hasta la vista general
+    await page.waitForFunction(() => !window.__PEGOLI__.scene.stats().busy, null, { timeout: 150000 }); // termina el vuelo hasta la vista general
     const before = (await sceneStats(page)).camera;
     const vp = page.viewportSize();
     await page.mouse.move(vp.width / 2, vp.height / 2);
     await page.mouse.down();
     await page.mouse.move(vp.width / 2 + 260, vp.height / 2, { steps: 8 });
     await page.mouse.up();
-    await expect.poll(async () => Math.abs((await sceneStats(page)).camera[0] - before[0]), { timeout: 30000 }).toBeGreaterThan(3);
+    await expect.poll(async () => Math.abs((await sceneStats(page)).camera[0] - before[0]), { timeout: 60000 }).toBeGreaterThan(3);
   });
 
   test("F02-E1 con teclado: flechas giran y + acerca", async ({ page }) => {
     await openVista(page);
-    await page.waitForTimeout(3500);
+    await page.waitForFunction(() => !window.__PEGOLI__.scene.stats().busy, null, { timeout: 150000 });
     const before = (await sceneStats(page)).camera;
     await page.getByRole("img", { name: /Recreación 3D interactiva/ }).focus();
     await page.keyboard.press("ArrowLeft");

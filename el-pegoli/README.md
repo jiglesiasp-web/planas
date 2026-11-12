@@ -25,7 +25,8 @@ es solo de desarrollo y no hace falta subirla. En cada nueva subida, cambiar el 
 | `index.html` | todo el contenido (se lee aunque falle el JavaScript) |
 | `styles.css` | diseño |
 | `main.js` | interacción: menú, apariciones, luz del día, controles de la vista 3D |
-| `lib/scene3d.js` | la recreación 3D del restaurante (Three.js): agua, cielo, texturas y modelo generados en el navegador, sin descargar imágenes |
+| `lib/scene3d.js` | la vista 3D (Three.js): agua, cielo, luz y el modelo del restaurante hecho sobre su planta real |
+| `lib/geodata.js` | datos reales del sitio: ortofoto PNOA (IGN), relieve y edificios vecinos. Lo genera `tools/geodatos.py` |
 | `lib/three.min.js` | motor 3D, copia local |
 | `assets/img/` | imágenes de la recreación (se muestran mientras carga el 3D o si no hay WebGL) |
 | `tools/replica/` | mapa de fuentes, lista de funciones, tokens de diseño y plan de pruebas |
@@ -37,6 +38,7 @@ es solo de desarrollo y no hace falta subirla. En cada nueva subida, cambiar el 
 - **Textos de historia y cocina.** Salen de la web del restaurante, Guía Repsol y Directo al Paladar.
 - **Precios y carta.** No están publicados y no se ha inventado ninguno.
 - **Fotos.** La web no usa fotografías reales: las imágenes son de la recreación 3D y así se indica.
-- **Vista 3D.** Es una recreación orientativa hecha a partir de fotos públicas, no un plano a escala.
+- **Vista 3D.** La costa, el relieve (Montgó, cerro del castillo) y el entorno son reales: salen de la ortofoto del IGN, de un modelo del terreno y de OpenStreetMap. El edificio está modelado a mano sobre su planta real y las fotos del local; las alturas, el interior y el mobiliario son una interpretación, no un plano a escala.
+- **Atribución obligatoria.** La ortofoto es PNOA © Instituto Geográfico Nacional (CC BY 4.0) y los edificios son © colaboradores de OpenStreetMap. La web ya lo indica en el pie y en la vista 3D; no hay que quitarlo.
 
 Fuentes y detalle en `tools/replica/recon.md`.

@@ -112,11 +112,11 @@
 
       <div class="hero-side">
         <div class="seg" role="group" aria-label="Luz de la recreación 3D" data-time-group>
-          <button type="button" data-time="dia" aria-pressed="true">Mediodía</button>
+          <button type="button" data-time="dia" aria-pressed="true">Día</button>
           <button type="button" data-time="atardecer" aria-pressed="false">Atardecer</button>
           <button type="button" data-time="noche" aria-pressed="false">Noche</button>
         </div>
-        <p class="hero-note">Recreación 3D orientativa</p>
+        <p class="hero-note">Vista 3D sobre ortofoto real</p>
       </div>
 
       <a class="hero-scroll" href="#historia" aria-label="Bajar a la historia">
@@ -203,7 +203,7 @@
     <section class="vista" id="vista-3d" data-vista aria-labelledby="vista-title">
       <div class="vista-sticky">
         <div class="vista-drag" data-drag tabindex="0" role="img"
-             aria-label="Recreación 3D interactiva del restaurante: comedor acristalado, terraza con balaustrada blanca y sombrillas de brezo sobre las rocas. Arrastra o usa las flechas para girar; más y menos para acercar."></div>
+             aria-label="Recreación 3D interactiva del restaurante sobre la ortofoto real de Les Rotes: terraza de sombrillas de brezo sobre el mar, comedor acristalado y pabellón de teja. Arrastra o usa las flechas para girar; más y menos para acercar."></div>
 
         <div class="vista-head">
           <p class="kicker">Vista 3D</p>
@@ -213,7 +213,7 @@
 
         <div class="vista-tools">
           <div class="seg" role="group" aria-label="Luz del día" data-time-group>
-            <button type="button" data-time="dia" aria-pressed="true">Mediodía</button>
+            <button type="button" data-time="dia" aria-pressed="true">Día</button>
             <button type="button" data-time="atardecer" aria-pressed="false">Atardecer</button>
             <button type="button" data-time="noche" aria-pressed="false">Noche</button>
           </div>
@@ -227,8 +227,7 @@
         <div class="hotspots" data-hotspots>
           <button type="button" class="hotspot" data-point="terraza" data-view="terraza"><span>La terraza</span></button>
           <button type="button" class="hotspot" data-point="comedor" data-view="comedor"><span>El comedor</span></button>
-          <button type="button" class="hotspot" data-point="sombrillas" data-view="sombrillas"><span>Sombrillas de brezo</span></button>
-          <button type="button" class="hotspot" data-point="rocas" data-view="rocas"><span>Las rocas</span></button>
+          <button type="button" class="hotspot" data-point="cala" data-view="cala"><span>La cala</span></button>
           <button type="button" class="hotspot hotspot-far" data-point="denia" data-view="denia"><span>Dénia</span></button>
           <button type="button" class="hotspot hotspot-far" data-point="montgo" data-view="general"><span>El Montgó</span></button>
         </div>
@@ -238,11 +237,11 @@
             <button type="button" data-view="general" aria-pressed="true">General</button>
             <button type="button" data-view="terraza" aria-pressed="false">La terraza</button>
             <button type="button" data-view="comedor" aria-pressed="false">El comedor</button>
-            <button type="button" data-view="sombrillas" aria-pressed="false">Sombrillas</button>
-            <button type="button" data-view="rocas" aria-pressed="false">Desde las rocas</button>
+            <button type="button" data-view="cala" aria-pressed="false">Desde la cala</button>
+            <button type="button" data-view="mar" aria-pressed="false">Desde el mar</button>
             <button type="button" data-view="denia" aria-pressed="false">Dénia al fondo</button>
           </div>
-          <p class="vista-note">Recreación 3D orientativa, hecha a partir de fotografías públicas. No es un plano a escala.</p>
+          <p class="vista-note">Costa, relieve y entorno reales (ortofoto PNOA © IGN). El edificio es un modelo orientativo sobre su planta y fotos del local, no un plano a escala.</p>
         </div>
 
         <p class="vista-hint" data-vista-hint aria-hidden="true">
@@ -328,10 +327,10 @@
 
         <div class="luces">
           <figure class="luz" data-reveal>
-            <button type="button" data-goto-time="dia" aria-label="Ver la vista 3D a mediodía">
-              <img src="assets/img/luz-dia.webp" alt="Recreación 3D del restaurante a mediodía: terraza blanca con sillas azules sobre el mar" width="1200" height="1500" loading="lazy" decoding="async" />
+            <button type="button" data-goto-time="dia" aria-label="Ver la vista 3D de día">
+              <img src="assets/img/luz-dia.webp" alt="Recreación 3D del restaurante de día: terraza de sombrillas de brezo sobre el mar" width="1200" height="1500" loading="lazy" decoding="async" />
             </button>
-            <figcaption><strong>Mediodía</strong>Comidas de martes a domingo, de 12:00 a 16:00.</figcaption>
+            <figcaption><strong>De día</strong>Comidas de martes a domingo, de 12:00 a 16:00.</figcaption>
           </figure>
           <figure class="luz" data-reveal>
             <button type="button" data-goto-time="atardecer" aria-label="Ver la vista 3D al atardecer">
@@ -425,11 +424,12 @@
         <a href="#entorno">Entorno</a>
         <a href="#visita">Horario y reservas</a>
       </nav>
-      <p class="footer-fuentes">Datos tomados de la web del restaurante, Guía Repsol y Directo al Paladar. La vista 3D es una recreación orientativa.</p>
+      <p class="footer-fuentes">Datos tomados de la web del restaurante, Guía Repsol y Directo al Paladar. Vista 3D: recreación orientativa sobre ortofoto PNOA © Instituto Geográfico Nacional (CC BY 4.0), edificios © colaboradores de OpenStreetMap y relieve de Terrain Tiles (Mapzen/AWS).</p>
     </div>
   </footer>
 
   <script defer src="lib/three.min.js?v=20261112"></script>
+  <script defer src="lib/geodata.js?v=20261112"></script>
   <script defer src="lib/scene3d.js?v=20261112"></script>
   <script defer src="lib/manifest.js?v=20261112"></script>
   <script defer src="main.js?v=20261112"></script>

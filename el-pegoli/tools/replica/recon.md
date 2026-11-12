@@ -16,6 +16,10 @@ la vista 3D y **no se han copiado al proyecto**.
 | 2 | Guía Repsol | https://www.guiarepsol.com/es/fichas/restaurante/el-pegoli-332693/ | dirección, teléfono, 1943, familia Piera Sendra, "Recomendado", precio medio >60 € |
 | 3 | Directo al Paladar (reseña) | https://www.directoalpaladar.com/viajes/restaurante-el-pegoli-70-anos-de-arroz-de-calidad-en-denia | platos citados, descripción del comedor y la terraza |
 | 4 | Valencia Plaza | https://valenciaplaza.com/restaurantes-de-denia-para-comer-cerca-del-mediterraneo | origen como casa de comidas, Pepe Piera |
+| 5 | Ortofoto PNOA (IGN) | https://www.ign.es/wms-inspire/pnoa-ma | planta real del edificio, costa, cala e islote; se usa como suelo de la vista 3D (CC BY 4.0) |
+| 6 | OpenStreetMap | https://www.openstreetmap.org/way/442574827 | situación exacta (38.83373, 0.13739) y huellas de los edificios vecinos (ODbL) |
+| 7 | Terrain Tiles (Mapzen/AWS) | https://registry.opendata.aws/terrain-tiles/ | relieve del Montgó y del cerro del castillo |
+| 8 | Cuatro fotos aportadas por el cliente | — | muro con rótulo desde la cala, terraza de sombrillas, escalera de canto azul, comedor acristalado. Solo como referencia: no están en la web |
 
 ## Datos verificados
 
@@ -38,7 +42,7 @@ la vista 3D y **no se han copiado al proyecto**.
 - El horario es el publicado en su blog (antiguo). Septiembre no aparece. **Confirmar.**
 - Precios: no publicados. No se ha inventado ninguno.
 - Las coordenadas GPS del blog no corresponden a Dénia; no se usan (el botón abre una búsqueda en Google Maps).
-- La distribución de la vista 3D (posición de la terraza de sombrillas, número de mesas) es una interpretación.
+- La planta del edificio y la posición de las sombrillas salen de la ortofoto. Las alturas, el interior del comedor y el mobiliario son una interpretación.
 
 ## Core loop
 

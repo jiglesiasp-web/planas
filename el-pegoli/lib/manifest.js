@@ -8,12 +8,12 @@
     phone: "+34965781035",
     captions: {
       inicio: "Arrastra para girar. Elige un punto de vista o cambia la luz.",
-      general: "Vista general: comedor acristalado, terraza con balaustrada y sombrillas de brezo sobre las rocas.",
-      terraza: "La terraza: manteles blancos y sillas azules junto a la balaustrada. En julio y agosto, aquí se sirven las cenas.",
-      comedor: "El comedor: ventanales al mar. El arròs a banda se termina a la vista de la mesa.",
-      sombrillas: "Sombrillas de brezo a un paso del agua.",
-      rocas: "Desde las rocas de Les Rotes: el muro blanco de la terraza cae sobre el mar.",
-      denia: "Al fondo, Dénia y su castillo. A la espalda, el Montgó."
+      general: "Vista general sobre la ortofoto real: terraza de sombrillas al mar, comedor acristalado y pabellón de teja junto a la calle.",
+      terraza: "La terraza: sombrillas de brezo sobre losas de piedra, a un paso del agua. Arrastra para mirar alrededor.",
+      comedor: "El comedor: ventanales de suelo a techo sobre la terraza y el mar. Arrastra para mirar alrededor.",
+      cala: "Desde la cala de cantos, con el rótulo pintado en el muro.",
+      mar: "Desde el mar: la terraza de sombrillas, sobre la roca.",
+      denia: "Al fondo, Dénia y el cerro del castillo, con su relieve real."
     }
   };
 })();
