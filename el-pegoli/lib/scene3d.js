@@ -96,7 +96,7 @@
     mar:     { pos: [9, 3.4, -66],    target: [8, 5, -8],     fov: 36, wide: true },
     terraza: { pos: [0.9, 4.3, -16.3], target: [16, 3.8, -13.0], fov: 62, look: true },
     comedor: { pos: [17.2, 5.75, 0.9], target: [16.8, 5.3, -20], fov: 62, look: true },
-    cala:    { pos: [41, 3.4, 21],    target: [24, 4.2, 1],   fov: 46 },
+    cala:    { pos: [53, 3.2, 27],    target: [27, 3.8, 6],   fov: 40 },
     denia:   { pos: [-2.4, 4.5, -14.5], target: [-2610, 60, -951], fov: 24, look: true }
   };
 
@@ -754,28 +754,37 @@
         uv.setXY(k, (x - g.x0) / g.size, 1 - (z - g.z0) / g.size);
       }
       geo.computeVertexNormals();
-      var o = { color: 0xd4d4d4, map: tex, roughness: 1 };
+      var o = { color: 0xbcbcbc, map: tex, roughness: 1 };
       if (extra) for (var q in extra) o[q] = extra[q];
       var mat = pbr(o);
-      if (extra && extra.normalMap) {
-        // la ortofoto se queda corta a un metro de distancia: se le suma grano de roca
-        mat.onBeforeCompile = function (sh) {
-          sh.uniforms.uDetail = { value: T.rock };
-          sh.fragmentShader = "uniform sampler2D uDetail;\n" + sh.fragmentShader.replace("#include <map_fragment>",
-            "#include <map_fragment>\n  diffuseColor.rgb *= mix(vec3(1.0), texture2D(uDetail, vMapUv * 170.0).rgb * 1.65, 0.75);");
-        };
-      }
+      var grain = !!(extra && extra.normalMap);
+      mat.onBeforeCompile = function (sh) {
+        sh.uniforms.uDetail = { value: T.rock };
+        // se recupera el color que la foto aérea pierde con la bruma y, de cerca, se le suma grano de roca
+        sh.fragmentShader = "uniform sampler2D uDetail;\n" + sh.fragmentShader.replace("#include <map_fragment>",
+          "#include <map_fragment>\n  float lumT = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));\n  diffuseColor.rgb = max(mix(vec3(lumT), diffuseColor.rgb, 1.4), 0.0);" +
+          (grain ? "\n  diffuseColor.rgb *= mix(vec3(1.0), texture2D(uDetail, vMapUv * 170.0).rgb * 1.65, 0.75);" : ""));
+      };
       return mesh(geo, mat, 0, 0, 0, scene, { cast: false });
     }
     (function () {
       var detail = T.rockN.clone();
       detail.repeat.set(64, 64);
       detail.needsUpdate = true;
-      terrain(NEARG, OT.cerca, function (x, z, h, border) { return border ? Math.min(h, gridH(MIDG, x, z) - 2.5) : h; }, { normalMap: detail, normalScale: ns(0.75) });
+      terrain(NEARG, OT.cerca, function (x, z, h, border) {
+        if (border) return Math.min(h, gridH(MIDG, x, z) - 2.5);
+        // relieve de roca en la franja de la orilla (entre el agua y lo alto del cantil)
+        var w = smooth(0.5, 1.4, h) * (1 - smooth(2.3, 3.6, h));
+        if (w > 0) h += ((fbm(x * 0.5, z * 0.5) - 0.5) * 1.4 + (fbm(x * 1.6 + 3, z * 1.6) - 0.5) * 0.5) * w;
+        return h;
+      }, { normalMap: detail, normalScale: ns(0.9) });
+      var detailMid = T.rockN.clone();
+      detailMid.repeat.set(150, 150);
+      detailMid.needsUpdate = true;
       terrain(MIDG, OT.medio, function (x, z, h, border) {
         if (inGrid(NEARG, x, z, 10)) return h - 5;
         return border ? Math.min(h, gridH(FARG, x, z) - 4) : h;
-      }).receiveShadow = false;
+      }, { normalMap: detailMid, normalScale: ns(0.55) }).receiveShadow = false;
       terrain(FARG, OT.lejos, function (x, z, h) { return inGrid(MIDG, x, z, 70) ? h - 30 : h; }).receiveShadow = false;
     })();
 
@@ -907,7 +916,7 @@
 
     /* ================= edificios vecinos y arbolado ================= */
     (function () {
-      var rP = [], rU = [], wP = [], wU = [], wC = [], c = new THREE.Color();
+      var rP = [], rU = [], wP = [], wU = [], wC = [], eP = [], eU = [], c = new THREE.Color();
       var tones = [0xf4efe6, 0xe9dfcc, 0xf7f3ea, 0xe2d2b6, 0xf1e9dc, 0xdcc7a6, 0xead8c8, 0xefe9df];
       GEO.buildings.forEach(function (b, bi) {
         var pts = [], minH = 1e9, maxH = -1e9, i;
@@ -916,7 +925,7 @@
           var hh = landH(b[i], b[i + 1]);
           minH = Math.min(minH, hh); maxH = Math.max(maxH, hh);
         }
-        var lv = b[0] === 2 ? 1 + Math.floor(hash2(b[1], b[2]) * 2.4) : b[0];
+        var lv = b[0] === 2 ? (hash2(b[1], b[2]) < 0.45 ? 1 : 2) : Math.min(b[0], 3);
         var base = minH - 0.8, top = maxH + lv * 2.9 + 0.4 + hash2(b[2], b[1]) * 0.7;
         var g = new THREE.ExtrudeGeometry(shapeOf(pts), { depth: top - base, bevelEnabled: false });
         g.rotateX(-Math.PI / 2);
@@ -935,6 +944,19 @@
           }
         });
         g.dispose();
+        // alero: una losa algo más ancha que la planta, con canto de teja y la cubierta de la ortofoto encima
+        var eg = new THREE.ExtrudeGeometry(shapeOf(inflate(pts, 0.45)), { depth: 0.3, bevelEnabled: false });
+        eg.rotateX(-Math.PI / 2);
+        eg.translate(0, top, 0);
+        var ep = eg.attributes.position;
+        eg.groups.forEach(function (gr) {
+          for (var k = gr.start; k < gr.start + gr.count; k++) {
+            var x = ep.getX(k), y = ep.getY(k), z = ep.getZ(k);
+            if (gr.materialIndex === 0 && y > top + 0.15) { rP.push(x, y, z); var o = ortoUV(x, z); rU.push(o[0], o[1]); }
+            else { eP.push(x, y, z); eU.push((x + z) / 1.3, y / 1.3); }
+          }
+        });
+        eg.dispose();
       });
       function build(P, U, C) {
         var g = new THREE.BufferGeometry();
@@ -945,20 +967,66 @@
         return g;
       }
       mesh(build(rP, rU), pbr({ color: 0xdadada, map: OT.cerca, roughness: 1 }), 0, 0, 0, scene, { cast: false });
+      mesh(build(eP, eU), pbr({ color: 0xb9694b, map: T.teja, roughness: 0.9 }), 0, 0, 0, scene, { cast: false });
       M.fachada = pbr({ color: 0xffffff, map: T.fachada, vertexColors: true, roughness: 0.95, emissive: 0xffffff, emissiveMap: T.fachadaE, emissiveIntensity: 0 });
       mesh(build(wP, wU, wC), M.fachada, 0, 0, 0, scene, { cast: false });
+    })();
+
+    // bloques de roca en la orilla, colocados donde el relieve real toca el agua
+    (function () {
+      var geos = [blob(isMobile ? 1 : 2, 0.75, 1.6, 0.55, 5, 0.3), blob(isMobile ? 1 : 2, 0.95, 2.4, 0.65, 4, 0.3)];
+      var lists = [[], []], d = new THREE.Object3D(), c = new THREE.Color(), tries = 0, n = 0, want = isMobile ? 70 : 170;
+      var tones = [0xb9a58a, 0x9c8a72, 0xc7b497, 0x8f7c66, 0xad9478];
+      while (n < want && tries++ < 9000) {
+        var x = (rng() - 0.5) * 480, z = -150 + rng() * 300, h = landH(x, z);
+        if (h < -0.7 || h > 0.9) continue;
+        if (x > -18 && x < 34 && z > -24 && z < 16) continue; // junto al restaurante ya está el zócalo
+        var sc = 0.45 + Math.pow(rng(), 2.2) * 1.8;
+        d.position.set(x, h - 0.15 + rng() * 0.25, z);
+        d.scale.set(sc * (1 + rng() * 0.9), sc * (0.5 + rng() * 0.5), sc * (0.8 + rng() * 0.9));
+        d.rotation.set(rng() * 0.25, rng() * 6.28, rng() * 0.25);
+        d.updateMatrix();
+        lists[n % 2].push({ m: d.matrix.clone(), c: c.setHex(tones[Math.floor(rng() * tones.length)]).multiplyScalar(0.75 + rng() * 0.35).clone() });
+        n++;
+      }
+      lists.forEach(function (list, k) {
+        var im = instanced(geos[k], M.roca, list.length, scene, false);
+        list.forEach(function (it, j) { im.setMatrixAt(j, it.m); im.setColorAt(j, it.c); });
+      });
     })();
 
     // arbolado: una copa irregular de varios lóbulos sobre cada mancha de árboles de la ortofoto
     (function () {
       var lobe = blob(1, 1.0, 2.1, 1, 0, 0.62), cp = lobe.attributes.position, cc = lobe.attributes.color, cu = lobe.attributes.uv, ci = lobe.index.array;
       var P = [], U = [], C = [], I = [], trunks = [], d = new THREE.Object3D(), col = new THREE.Color();
+      // textura de follaje: cuatro ramas distintas (dos de hoja, dos de aguja de pino), con transparencia
+      var hc = document.createElement("canvas");
+      hc.width = hc.height = 512;
+      var hg = hc.getContext("2d");
+      for (var cell = 0; cell < 4; cell++) {
+        var ox0 = (cell % 2) * 256 + 128, oy0 = Math.floor(cell / 2) * 256 + 128;
+        for (var L = 0; L < 430; L++) {
+          var an = trng() * 6.283, rd = Math.sqrt(trng()) * (94 + trng() * 22);
+          var gcol = Math.floor((165 + trng() * 75) * (0.55 + (L / 430) * 0.45));
+          hg.fillStyle = "rgb(" + Math.floor(gcol * 0.86) + "," + gcol + "," + Math.floor(gcol * 0.68) + ")";
+          hg.save();
+          hg.translate(ox0 + Math.cos(an) * rd, oy0 + Math.sin(an) * rd * 0.82);
+          hg.rotate(trng() * 6.283);
+          if (cell < 2) { hg.beginPath(); hg.ellipse(0, 0, 5 + trng() * 7, 2.5 + trng() * 3, 0, 0, 6.283); hg.fill(); }
+          else { hg.fillRect(-12, -1, 24, 2); hg.rotate(0.55); hg.fillRect(-10, -1, 20, 2); hg.rotate(-1.1); hg.fillRect(-10, -1, 20, 2); }
+          hg.restore();
+        }
+      }
+      var hojasTex = new THREE.CanvasTexture(hc);
+      hojasTex.colorSpace = THREE.SRGBColorSpace;
+      hojasTex.anisotropy = maxAniso;
+      var KP = [], KN = [], KU = [], KC = [], KI = [], CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
       var greens = [0x40603a, 0x4f6d3e, 0x5f7448, 0x38553a, 0x6b7a50];
       GEO.trees.forEach(function (t, k) {
         if (isMobile && k % 2) return;
         var x = t[0], z = t[1], r = t[2], y = landH(x, z), hgt = 1.6 + r * 0.7 + hash2(x, z) * 1.8;
         col.setHex(greens[Math.floor(hash2(x * 3.1, z * 1.7) * greens.length)]).multiplyScalar(0.85 + hash2(z, x) * 0.35);
-        for (var b = 0; b < 3; b++) {
+        for (var b = 0; b < 2; b++) {
           var a = hash2(z + b, x) * 6.28, ca = Math.cos(a), sa = Math.sin(a), base = P.length / 3;
           var ox = (hash2(x, b + 1.3) - 0.5) * r * 0.9, oz = (hash2(b + 2.7, z) - 0.5) * r * 0.9, rr = r * (0.55 + hash2(x + b, z - b) * 0.3);
           for (var i = 0; i < cp.count; i++) {
@@ -969,6 +1037,26 @@
           }
           for (var q = 0; q < ci.length; q++) I.push(ci[q] + base);
         }
+        // ramas: carteles con follaje recortado, repartidos por la copa y sombreados como una esfera
+        var cy0 = y + hgt + 0.2, nCards = isMobile ? 5 : 10;
+        for (var q2 = 0; q2 < nCards; q2++) {
+          var h1 = hash2(x + q2 * 1.7, z - q2 * 2.3), h2 = hash2(z + q2 * 3.1, x + q2), h3 = hash2(x * 0.7 - q2, z * 1.3 + q2);
+          var yaw = h1 * 6.283, el = (h2 - 0.3) * 1.5, rr2 = r * (0.3 + h3 * 0.6);
+          var px = x + Math.cos(yaw) * Math.cos(el) * rr2, py = cy0 + Math.sin(el) * rr2 * 0.62, pz = z + Math.sin(yaw) * Math.cos(el) * rr2;
+          var sz = r * (0.8 + h2 * 0.55), a2 = h3 * 6.283, tilt = (h1 - 0.5) * 1.1;
+          var rx = Math.cos(a2), rz = Math.sin(a2), ux = -Math.sin(a2) * Math.sin(tilt), uy = Math.cos(tilt), uz = Math.cos(a2) * Math.sin(tilt);
+          var cl = Math.floor(h1 * 3.999), u0 = (cl % 2) * 0.5, v0 = Math.floor(cl / 2) * 0.5, base2 = KP.length / 3, shade = (0.8 + h3 * 0.4) * 1.9;
+          for (var ci2 = 0; ci2 < 4; ci2++) {
+            var cc2 = CORNERS[ci2];
+            var vx2 = px + (rx * cc2[0] + ux * cc2[1]) * sz * 0.5, vy2 = py + uy * cc2[1] * sz * 0.5, vz2 = pz + (rz * cc2[0] + uz * cc2[1]) * sz * 0.5;
+            KP.push(vx2, vy2, vz2);
+            var nx2 = vx2 - x, ny2 = vy2 - cy0 + r * 0.7, nz2 = vz2 - z, nl = Math.sqrt(nx2 * nx2 + ny2 * ny2 + nz2 * nz2) || 1;
+            KN.push(nx2 / nl, ny2 / nl, nz2 / nl);
+            KU.push(u0 + (cc2[0] > 0 ? 0.5 : 0), v0 + (cc2[1] > 0 ? 0.5 : 0));
+            KC.push(col.r * shade, col.g * shade, col.b * shade);
+          }
+          KI.push(base2, base2 + 1, base2 + 2, base2, base2 + 2, base2 + 3);
+        }
         trunks.push([x, y, z, hgt]);
       });
       var g = new THREE.BufferGeometry();
@@ -978,6 +1066,15 @@
       g.setIndex(I);
       g.computeVertexNormals();
       mesh(g, M.pino, 0, 0, 0, scene, { cast: false }); // quedan fuera de la zona de sombras
+      var kg = new THREE.BufferGeometry();
+      kg.setAttribute("position", new THREE.Float32BufferAttribute(KP, 3));
+      kg.setAttribute("normal", new THREE.Float32BufferAttribute(KN, 3));
+      kg.setAttribute("uv", new THREE.Float32BufferAttribute(KU, 2));
+      kg.setAttribute("color", new THREE.Float32BufferAttribute(KC, 3));
+      kg.setIndex(KI);
+      var hojas = pbr({ color: 0xffffff, map: hojasTex, alphaTest: 0.4, side: THREE.DoubleSide, vertexColors: true, roughness: 1 });
+      hojas.alphaToCoverage = true;
+      mesh(kg, hojas, 0, 0, 0, scene, { cast: false });
       var im = instanced(new THREE.CylinderGeometry(0.14, 0.2, 1, 5), M.tronco, trunks.length, scene, false);
       trunks.forEach(function (t, i) {
         d.position.set(t[0], t[1] + t[3] / 2 - 0.2, t[2]);

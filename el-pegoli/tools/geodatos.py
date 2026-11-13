@@ -241,9 +241,9 @@ for w in tree.findall("way"):
     buildings.append(flat)
 
 # ---------- salida ----------
-near_uri, near_bytes = data_uri(near_img, 72)
-mid_uri, mid_bytes = data_uri(mid_img.resize((1024, 1024), Image.LANCZOS), 70)
-far_uri, far_bytes = data_uri(far_img.resize((1024, 1024), Image.LANCZOS), 70)
+near_uri, near_bytes = data_uri(near_img, 76)
+mid_uri, mid_bytes = data_uri(mid_img.resize((1536, 1536), Image.LANCZOS), 60)
+far_uri, far_bytes = data_uri(far_img.resize((1280, 1280), Image.LANCZOS), 62)
 geo = {
     "credit": "Ortofoto: PNOA © Instituto Geográfico Nacional (CC BY 4.0). Edificios: © colaboradores de OpenStreetMap. Relieve: Terrain Tiles (Mapzen/AWS).",
     "near": {"cx": NEAR["cx"], "cz": NEAR["cz"], "size": NEAR["size"], "n": NEAR["n"], "h0": -10, "scale": 500, "heights": b64_u16(near_h, -10, 500)},
