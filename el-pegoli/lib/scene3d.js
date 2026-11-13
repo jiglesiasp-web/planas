@@ -166,7 +166,7 @@
     renderer.domElement.setAttribute("aria-hidden", "true");
     host.appendChild(renderer.domElement);
     renderer.info.autoReset = false;
-    var maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    var maxAniso = Math.min(16, renderer.capabilities.getMaxAnisotropy());
 
     var scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(TIMES.dia.fog, TIMES.dia.fogD);
@@ -241,7 +241,7 @@
     function grey(v, lo, hi) { var k = Math.round((lo + (hi - lo) * v) * 255); return [k, k, k]; }
 
     var trng = makeRng(77);
-    var TS = isMobile ? 256 : 512;
+    var TS = isMobile ? 256 : 1024, CS = isMobile ? 256 : 512;
     var T = {};
     (function () {
       // roca: se multiplica por el color de vértice
@@ -249,9 +249,10 @@
       T.rock = colorTex(rock, TS, function (v) { return grey(v, 0.62, 1.0); });
       T.rockN = normalTex(rock, TS, 5);
       // cal: grano fino
-      var cal = tileFbm(256, 24, 24, 3, trng);
-      T.cal = colorTex(cal, 256, function (v) { return grey(v, 0.93, 1.0); });
-      T.calN = normalTex(cal, 256, 1.1);
+      // cal: grano fino más manchas suaves de humedad
+      var cal = tileFbm(CS, 40, 40, 3, trng), calBig = tileFbm(CS, 3, 3, 3, trng);
+      T.cal = colorTex(cal, CS, function (v, x, y) { return grey(v * 0.55 + calBig[y * CS + x] * 0.45, 0.9, 1.0); });
+      T.calN = normalTex(cal, CS, 1.3);
       // follaje
       var fol = tileFbm(256, 12, 12, 4, trng);
       T.fol = colorTex(fol, 256, function (v) { return grey(v, 0.55, 1.0); });
@@ -407,28 +408,45 @@
 
     // texturas y materiales del modelo sobre datos reales
     (function () {
-      // fachada genérica de los edificios vecinos: paño encalado con una ventana por módulo
-      var c = document.createElement("canvas"), i;
-      c.width = c.height = 256;
+      // fachada genérica de los edificios vecinos: paño encalado, zócalo, ventana con contraventanas
+      var c = document.createElement("canvas"), i, FS = 512;
+      c.width = c.height = FS;
       var g = c.getContext("2d");
-      g.fillStyle = "#f4f1ea";
-      g.fillRect(0, 0, 256, 256);
-      for (i = 0; i < 900; i++) {
-        g.fillStyle = "rgba(120,110,95," + (trng() * 0.05).toFixed(3) + ")";
-        g.fillRect(trng() * 256, trng() * 256, 2 + trng() * 5, 1 + trng() * 3);
+      g.fillStyle = "#f3f0e8";
+      g.fillRect(0, 0, FS, FS);
+      for (i = 0; i < 2600; i++) {
+        g.fillStyle = "rgba(120,110,95," + (trng() * 0.045).toFixed(3) + ")";
+        g.fillRect(trng() * FS, trng() * FS, 2 + trng() * 9, 1 + trng() * 4);
       }
-      var grad = g.createLinearGradient(0, 0, 0, 256);
-      grad.addColorStop(0, "rgba(90,80,70,0.10)"); grad.addColorStop(0.2, "rgba(90,80,70,0)");
-      grad.addColorStop(0.85, "rgba(90,80,70,0)"); grad.addColorStop(1, "rgba(80,70,60,0.16)");
+      for (i = 0; i < 26; i++) {
+        var sx = trng() * FS, sg = g.createLinearGradient(0, 0, 0, 120 + trng() * 220);
+        sg.addColorStop(0, "rgba(96,88,76,0.10)"); sg.addColorStop(1, "rgba(96,88,76,0)");
+        g.fillStyle = sg;
+        g.fillRect(sx, 0, 3 + trng() * 9, 340);
+      }
+      var grad = g.createLinearGradient(0, 0, 0, FS);
+      grad.addColorStop(0, "rgba(90,80,70,0.10)"); grad.addColorStop(0.16, "rgba(90,80,70,0)");
+      grad.addColorStop(0.86, "rgba(90,80,70,0)"); grad.addColorStop(1, "rgba(70,62,54,0.22)");
       g.fillStyle = grad;
-      g.fillRect(0, 0, 256, 256);
-      g.fillStyle = "#d9d4c8"; g.fillRect(84, 58, 88, 118);
-      var wg = g.createLinearGradient(0, 64, 0, 170);
-      wg.addColorStop(0, "#2c3e4d"); wg.addColorStop(1, "#51697a");
-      g.fillStyle = wg; g.fillRect(90, 64, 76, 106);
-      g.fillStyle = "#d9d4c8"; g.fillRect(126, 64, 4, 106); g.fillRect(90, 112, 76, 3);
-      g.fillStyle = "#c9c2b4"; g.fillRect(78, 176, 100, 7);
+      g.fillRect(0, 0, FS, FS);
+      g.fillStyle = "#d8d2c5"; g.fillRect(172, 112, 168, 244);                 // recerco
+      var wg = g.createLinearGradient(0, 124, 0, 344);
+      wg.addColorStop(0, "#243542"); wg.addColorStop(1, "#4c6577");
+      g.fillStyle = wg; g.fillRect(184, 124, 144, 220);                        // vidrio
+      g.fillStyle = "#e9e5db"; g.fillRect(253, 124, 6, 220); g.fillRect(184, 226, 144, 5);
+      g.fillStyle = "#5a6b52";                                                 // contraventanas de lamas
+      g.fillRect(126, 118, 44, 232); g.fillRect(342, 118, 44, 232);
+      g.fillStyle = "rgba(0,0,0,0.22)";
+      for (i = 0; i < 19; i++) { g.fillRect(130, 124 + i * 12, 36, 3); g.fillRect(346, 124 + i * 12, 36, 3); }
+      g.fillStyle = "#c7c0b1"; g.fillRect(160, 356, 192, 12);                  // alféizar
+      g.fillStyle = "rgba(60,54,46,0.18)"; g.fillRect(160, 368, 192, 5);
       T.fachada = finishTex(c, true);
+      var ce = document.createElement("canvas");
+      ce.width = ce.height = 128;
+      var ge = ce.getContext("2d");
+      ge.fillStyle = "#000"; ge.fillRect(0, 0, 128, 128);
+      ge.fillStyle = "#ffcf8a"; ge.fillRect(46, 31, 36, 55);
+      T.fachadaE = finishTex(ce, true);
 
       c = document.createElement("canvas");
       c.width = 64; c.height = 40;
@@ -652,12 +670,12 @@
     scene.add(hemi);
     var sun = new THREE.DirectionalLight(0xffffff, 3);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(isMobile ? 1024 : 2048, isMobile ? 1024 : 2048);
+    sun.shadow.mapSize.set(isMobile ? 1024 : 4096, isMobile ? 1024 : 4096);
     (function () {
       var sc = sun.shadow.camera;
       sc.left = -42; sc.right = 46; sc.top = 38; sc.bottom = -38; sc.near = 1; sc.far = 300;
-      sun.shadow.bias = -0.0004;
-      sun.shadow.normalBias = 0.05;
+      sun.shadow.bias = -0.0007;
+      sun.shadow.normalBias = 0.16;
     })();
     scene.add(sun);
     scene.add(sun.target);
@@ -927,7 +945,8 @@
         return g;
       }
       mesh(build(rP, rU), pbr({ color: 0xdadada, map: OT.cerca, roughness: 1 }), 0, 0, 0, scene, { cast: false });
-      mesh(build(wP, wU, wC), pbr({ color: 0xffffff, map: T.fachada, vertexColors: true, roughness: 0.95 }), 0, 0, 0, scene, { cast: false });
+      M.fachada = pbr({ color: 0xffffff, map: T.fachada, vertexColors: true, roughness: 0.95, emissive: 0xffffff, emissiveMap: T.fachadaE, emissiveIntensity: 0 });
+      mesh(build(wP, wU, wC), M.fachada, 0, 0, 0, scene, { cast: false });
     })();
 
     // arbolado: una copa irregular de varios lóbulos sobre cada mancha de árboles de la ortofoto
@@ -1075,6 +1094,22 @@
 
     // sombrillas de brezo (posiciones de la ortofoto), mesas, sillas y hamacas
     (function () {
+      // fleco: tiras de brezo de largo irregular, recortadas con transparencia
+      var fc = document.createElement("canvas");
+      fc.width = 1024; fc.height = 128;
+      var fg = fc.getContext("2d");
+      for (var fx = 0; fx < 1024; fx += 3) {
+        var fl = 60 + hash2(fx, 3.3) * 68, tone = 105 + Math.floor(hash2(fx, 7.7) * 70);
+        fg.fillStyle = "rgb(" + tone + "," + Math.floor(tone * 0.88) + "," + Math.floor(tone * 0.68) + ")";
+        fg.fillRect(fx, 0, 2 + (hash2(fx, 1.1) > 0.6 ? 1 : 0), fl);
+      }
+      var fleco = new THREE.CanvasTexture(fc);
+      fleco.colorSpace = THREE.SRGBColorSpace;
+      fleco.wrapS = THREE.RepeatWrapping;
+      fleco.anisotropy = maxAniso;
+      var flecoMat = pbr({ color: 0x9a9286, map: fleco, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1 });
+      var fringe = new THREE.CylinderGeometry(1.64, 1.72, 0.34, 48, 1, true);
+      var fringe2 = new THREE.CylinderGeometry(1.02, 1.1, 0.26, 36, 1, true);
       var canopy = new THREE.LatheGeometry([[0.02, 0.62], [0.45, 0.54], [1.05, 0.33], [1.5, 0.1], [1.68, -0.08], [1.6, -0.15], [1.15, 0.02], [0.08, 0.3]].map(function (p) { return new THREE.Vector2(p[0], p[1]); }), 30);
       var cp = canopy.attributes.position, i, v;
       for (i = 0; i < cp.count; i++) {
@@ -1101,6 +1136,8 @@
         mesh(canopy, M.brezoOscuro, q[0], y + 2.5, q[1], resto).rotation.y = n;
         mesh(tuft, M.brezoOscuro, q[0], y + 3.38, q[1], resto);
         mesh(cap, M.brezoOscuro, q[0], y + 3.74, q[1], resto);
+        mesh(fringe, flecoMat, q[0], y + 2.27, q[1], resto, { cast: false }).rotation.y = n * 0.7;
+        mesh(fringe2, flecoMat, q[0], y + 2.7, q[1], resto, { cast: false }).rotation.y = n * 1.3;
         var tx = q[0] + 0.75, tz = q[1] + 0.35;
         mesh(box(0.75, 0.035, 0.75), M.plastico, tx, y + 0.74, tz, resto);
         mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.72, 6), M.plastico, tx, y + 0.37, tz, resto);
@@ -1200,8 +1237,8 @@
       wall(DR[4], DR[5], y0, y1, 0.25, M.paredInt, resto);
       wall(DR[5], DR[0], y0, y1, 0.25, M.paredInt, resto);
       prism(inflate(DR, -0.05), y1 - 0.06, y1 - 0.02, M.paredInt, 2.5, resto, { cast: false });
-      var fill = new THREE.PointLight(0xfff1dc, 20, 20, 2);
-      fill.position.set(17.6, y1 - 0.9, -2.2);
+      var fill = new THREE.PointLight(0xfff1dc, 13, 20, 2);
+      fill.position.set(17.6, y1 - 1.5, -2.2);
       scene.add(fill);
       [DR[0], DR[1], DR[2], DR[3], DR[4]].forEach(function (p) { mesh(tbox(0.46, y1 - y0, 0.46, 1.5), M.hormigonClaro, p[0] * 0.985 + 0.25, (y0 + y1) / 2, p[1] * 0.98, resto); });
 
@@ -1399,6 +1436,7 @@
       sun.position.copy(cur.sunDir).multiplyScalar(150).add(sun.target.position);
       renderer.toneMappingExposure = cur.exposure;
       M.vidrio.emissiveIntensity = cur.lamps * 0.9;
+      if (M.fachada) M.fachada.emissiveIntensity = cur.lamps * 0.3;
       M.farol.emissiveIntensity = cur.lamps * 3.4;
       M.lampara.emissiveIntensity = 0.35 + cur.lamps * 2.4;
       candles.material.opacity = cur.lamps;
@@ -1572,79 +1610,153 @@
     }
 
     /* ================= posprocesado ================= */
-    // Sombreado de contacto (oclusión ambiental): oscurece rincones y encuentros entre superficies.
-    // Solo en equipos de sobremesa con WebGL2; si el equipo va justo, se desactiva.
+    // Cadena de acabado en equipos de sobremesa: antialiasing 4x, sombreado de contacto
+    // (oclusión ambiental suavizada), resplandor en brillos y luces, y una gradación ligera.
+    // Si el equipo no la soporta o va justo, la escena se dibuja directamente.
     var post = null;
     (function () {
       if (isMobile || options.noPost || !renderer.capabilities.isWebGL2) return;
-      // hace falta poder dibujar sobre texturas de coma flotante; si no, se dibuja directo
       if (!renderer.extensions.has("EXT_color_buffer_float") && !renderer.extensions.has("EXT_color_buffer_half_float")) return;
       var rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
       rt.depthTexture = new THREE.DepthTexture(4, 4);
-      var mat = new THREE.ShaderMaterial({
-        uniforms: { tColor: { value: rt.texture }, tDepth: { value: rt.depthTexture }, uProj: { value: new THREE.Matrix4() }, uInvProj: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2(1, 1) } },
-        depthTest: false, depthWrite: false, fog: false,
-        vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
-        fragmentShader: [
-          "uniform sampler2D tColor; uniform sampler2D tDepth; uniform mat4 uProj; uniform mat4 uInvProj; uniform vec2 uRes; varying vec2 vUv;",
-          "vec3 viewPos(vec2 uv){ float d = texture2D(tDepth, uv).x; vec4 v = uInvProj * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); return v.xyz / v.w; }",
-          "float ign(vec2 p){ return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }",
-          "void main(){",
-          "  vec3 col = texture2D(tColor, vUv).rgb;",
-          "  float d = texture2D(tDepth, vUv).x;",
-          "  float ao = 1.0;",
-          "  if (d < 0.999995) {",
-          "    vec3 p = viewPos(vUv);",
-          "    vec3 n = normalize(cross(dFdx(p), dFdy(p)));",
-          "    float radius = 0.85;",
-          "    float rpx = radius * uProj[1][1] * 0.5 / max(-p.z, 0.5);",
-          "    float ang = ign(gl_FragCoord.xy) * 6.2831853;",
-          "    float occ = 0.0;",
-          "    for (int i = 0; i < 12; i++) {",
-          "      float fi = (float(i) + 0.5) / 12.0;",
-          "      float a = ang + fi * 15.08;",
-          "      vec2 o = vec2(cos(a) * uRes.y / uRes.x, sin(a)) * rpx * sqrt(fi);",
-          "      vec3 v = viewPos(vUv + o) - p;",
-          "      float dv = dot(v, v);",
-          "      occ += max(dot(n, v) - 0.035 - 0.0006 * -p.z, 0.0) / (dv + 0.03) * step(dv, radius * radius * 5.0);",
-          "    }",
-          "    ao = clamp(1.0 - occ * 0.15, 0.0, 1.0);",
-          "    ao = mix(1.0, ao, smoothstep(240.0, 50.0, -p.z));",
-          "  }",
-          "  col *= mix(1.0, ao, 0.9);",
-          "  gl_FragColor = vec4(col, 1.0);",
-          "  #include <tonemapping_fragment>",
-          "  #include <colorspace_fragment>",
-          "}"
-        ].join("\n")
-      });
-      var quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
+      var aoRT = new THREE.WebGLRenderTarget(4, 4, { depthBuffer: false });
+      var bA = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: false });
+      var bB = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: false });
+      var VS = "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }";
+      var DEPTH = "uniform sampler2D tDepth; uniform mat4 uInvProj;\nvec3 viewPos(vec2 uv){ float d = texture2D(tDepth, uv).x; vec4 v = uInvProj * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); return v.xyz / v.w; }";
+      function pass(uniforms, lines) {
+        return new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: VS, fragmentShader: lines.join("\n"), depthTest: false, depthWrite: false, fog: false });
+      }
+      var invProj = { value: new THREE.Matrix4() }, depth = { value: rt.depthTexture };
+      var ao = pass({ tDepth: depth, uInvProj: invProj, uProj: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2(1, 1) } }, [
+        "uniform mat4 uProj; uniform vec2 uRes; varying vec2 vUv;",
+        DEPTH,
+        "float ign(vec2 p){ return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }",
+        "void main(){",
+        "  float d = texture2D(tDepth, vUv).x;",
+        "  float a = 1.0;",
+        "  if (d < 0.999995) {",
+        "    vec3 p = viewPos(vUv);",
+        "    vec3 n = normalize(cross(dFdx(p), dFdy(p)));",
+        "    float radius = 0.9;",
+        "    float rpx = radius * uProj[1][1] * 0.5 / max(-p.z, 0.5);",
+        "    float ang = ign(gl_FragCoord.xy) * 6.2831853;",
+        "    float occ = 0.0;",
+        "    for (int i = 0; i < 14; i++) {",
+        "      float fi = (float(i) + 0.5) / 14.0;",
+        "      float t = ang + fi * 17.6;",
+        "      vec2 o = vec2(cos(t) * uRes.y / uRes.x, sin(t)) * rpx * sqrt(fi);",
+        "      vec3 v = viewPos(vUv + o) - p;",
+        "      float dv = dot(v, v);",
+        // sesgo por ángulo: una superficie plana nunca se ocluye a sí misma
+        "      float nd = dot(n, v) * inversesqrt(dv + 0.0001);",
+        "      occ += max(nd - 0.22, 0.0) * (1.0 - smoothstep(0.0, radius * radius * 2.2, dv));",
+        "    }",
+        "    a = clamp(1.0 - occ * 0.17, 0.0, 1.0);",
+        // en superficies vistas muy de canto la profundidad no da para más: ahí se atenúa
+        "    a = mix(1.0, a, smoothstep(0.1, 0.38, dot(n, normalize(-p))));",
+        "    a = mix(1.0, a, smoothstep(240.0, 50.0, -p.z));",
+        "  }",
+        "  gl_FragColor = vec4(a, a, a, 1.0);",
+        "}"
+      ]);
+      var bright = pass({ tColor: { value: rt.texture }, uTexel: { value: new THREE.Vector2() } }, [
+        "uniform sampler2D tColor; uniform vec2 uTexel; varying vec2 vUv;",
+        "void main(){",
+        "  vec3 c = texture2D(tColor, vUv + uTexel * vec2(-1.0, -1.0)).rgb + texture2D(tColor, vUv + uTexel * vec2(1.0, -1.0)).rgb",
+        "         + texture2D(tColor, vUv + uTexel * vec2(-1.0, 1.0)).rgb + texture2D(tColor, vUv + uTexel * vec2(1.0, 1.0)).rgb;",
+        "  c *= 0.25;",
+        "  float l = max(c.r, max(c.g, c.b));",
+        "  gl_FragColor = vec4(min(c * smoothstep(1.5, 3.0, l), vec3(14.0)), 1.0);",
+        "}"
+      ]);
+      var blur = pass({ tSrc: { value: null }, uDir: { value: new THREE.Vector2() } }, [
+        "uniform sampler2D tSrc; uniform vec2 uDir; varying vec2 vUv;",
+        "void main(){",
+        "  vec3 c = texture2D(tSrc, vUv).rgb * 0.227;",
+        "  c += (texture2D(tSrc, vUv + uDir * 1.4).rgb + texture2D(tSrc, vUv - uDir * 1.4).rgb) * 0.194;",
+        "  c += (texture2D(tSrc, vUv + uDir * 3.3).rgb + texture2D(tSrc, vUv - uDir * 3.3).rgb) * 0.121;",
+        "  c += (texture2D(tSrc, vUv + uDir * 5.2).rgb + texture2D(tSrc, vUv - uDir * 5.2).rgb) * 0.054;",
+        "  c += (texture2D(tSrc, vUv + uDir * 7.1).rgb + texture2D(tSrc, vUv - uDir * 7.1).rgb) * 0.016;",
+        "  gl_FragColor = vec4(c, 1.0);",
+        "}"
+      ]);
+      var comp = pass({ tColor: { value: rt.texture }, tAO: { value: aoRT.texture }, tBloom: { value: bA.texture }, tDepth: depth, uInvProj: invProj, uAoTexel: { value: new THREE.Vector2() }, uBloom: { value: 0.3 } }, [
+        "uniform sampler2D tColor; uniform sampler2D tAO; uniform sampler2D tBloom; uniform vec2 uAoTexel; uniform float uBloom; varying vec2 vUv;",
+        DEPTH,
+        "void main(){",
+        "  vec3 col = texture2D(tColor, vUv).rgb;",
+        // la oclusión se suaviza respetando los bordes de profundidad, para que no haga grano
+        "  float z0 = viewPos(vUv).z; float sum = 0.0; float w = 0.0;",
+        "  for (int x = -1; x <= 1; x++) { for (int y = -1; y <= 1; y++) {",
+        "    vec2 o = vec2(float(x), float(y)) * uAoTexel * 1.2;",
+        "    float z = viewPos(vUv + o).z;",
+        "    float wt = 1.0 / (1.0 + abs(z - z0) / max(-z0, 0.5) * 70.0);",
+        "    sum += texture2D(tAO, vUv + o).r * wt; w += wt;",
+        "  } }",
+        "  col *= mix(1.0, sum / w, 0.92);",
+        "  col += texture2D(tBloom, vUv).rgb * uBloom;",
+        "  float l = dot(col, vec3(0.2126, 0.7152, 0.0722));",
+        "  col = mix(vec3(l), col, 1.05);",
+        "  vec2 q = vUv - 0.5;",
+        "  col *= 1.0 - dot(q, q) * 0.2;",
+        "  gl_FragColor = vec4(col, 1.0);",
+        "  #include <tonemapping_fragment>",
+        "  #include <colorspace_fragment>",
+        "}"
+      ]);
+      var quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), comp);
       quad.frustumCulled = false;
       var ps = new THREE.Scene();
       ps.add(quad);
-      post = { rt: rt, mat: mat, scene: ps, cam: new THREE.Camera(), size: new THREE.Vector2() };
+      post = { rt: rt, aoRT: aoRT, bA: bA, bB: bB, ao: ao, bright: bright, blur: blur, comp: comp, quad: quad, scene: ps, cam: new THREE.Camera(), size: new THREE.Vector2(), invProj: invProj };
     })();
     function renderScene() {
       if (post && quality.level === 0) {
         try {
-          renderer.getDrawingBufferSize(post.size);
-          if (post.rt.width !== post.size.x || post.rt.height !== post.size.y) post.rt.setSize(post.size.x, post.size.y);
-          renderer.setRenderTarget(post.rt);
-          if (!post.checked) {
+          var P = post, s = P.size;
+          renderer.getDrawingBufferSize(s);
+          if (P.rt.width !== s.x || P.rt.height !== s.y) {
+            P.rt.setSize(s.x, s.y);
+            P.aoRT.setSize(Math.ceil(s.x / 2), Math.ceil(s.y / 2));
+            P.bA.setSize(Math.ceil(s.x / 4), Math.ceil(s.y / 4));
+            P.bB.setSize(Math.ceil(s.x / 4), Math.ceil(s.y / 4));
+          }
+          renderer.setRenderTarget(P.rt);
+          if (!P.checked) {
             // algunos equipos aceptan crear el búfer pero no pueden usarlo: se comprueba una vez
             var gl = renderer.getContext();
-            post.checked = true;
+            P.checked = true;
             if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error("búfer de posprocesado no disponible");
           }
           renderer.render(scene, camera);
+          P.invProj.value.copy(camera.projectionMatrixInverse);
+          P.ao.uniforms.uProj.value.copy(camera.projectionMatrix);
+          P.ao.uniforms.uRes.value.copy(s);
+          P.quad.material = P.ao;
+          renderer.setRenderTarget(P.aoRT);
+          renderer.render(P.scene, P.cam);
+          P.bright.uniforms.uTexel.value.set(1 / s.x, 1 / s.y);
+          P.quad.material = P.bright;
+          renderer.setRenderTarget(P.bA);
+          renderer.render(P.scene, P.cam);
+          P.quad.material = P.blur;
+          P.blur.uniforms.tSrc.value = P.bA.texture;
+          P.blur.uniforms.uDir.value.set(1 / P.bA.width, 0);
+          renderer.setRenderTarget(P.bB);
+          renderer.render(P.scene, P.cam);
+          P.blur.uniforms.tSrc.value = P.bB.texture;
+          P.blur.uniforms.uDir.value.set(0, 1 / P.bA.height);
+          renderer.setRenderTarget(P.bA);
+          renderer.render(P.scene, P.cam);
+          P.comp.uniforms.uAoTexel.value.set(1 / P.aoRT.width, 1 / P.aoRT.height);
+          P.comp.uniforms.uBloom.value = 0.28 + cur.lamps * 0.3;
+          P.quad.material = P.comp;
           renderer.setRenderTarget(null);
-          post.mat.uniforms.uProj.value.copy(camera.projectionMatrix);
-          post.mat.uniforms.uInvProj.value.copy(camera.projectionMatrixInverse);
-          post.mat.uniforms.uRes.value.copy(post.size);
-          renderer.render(post.scene, post.cam);
+          renderer.render(P.scene, P.cam);
           return;
         } catch (e) {
-          // sin posprocesado la escena se ve igual, solo sin el sombreado de contacto
+          // sin posprocesado la escena se ve igual, solo sin estos acabados
           renderer.setRenderTarget(null);
           post = null;
           if (window.console) console.warn("[vista 3D] posprocesado desactivado:", e.message);
@@ -1659,31 +1771,33 @@
     // Regulador de calidad: si el equipo no llega, se baja resolución y sombras;
     // sin aceleración gráfica (nivel 3) solo se dibuja cuando algo cambia,
     // para que el resto de la página siga respondiendo.
+    // Niveles: 0 todo · 1 sin posprocesado · 2 algo menos de resolución · 3 resolución base y sin sombras
+    //          4 (ECO) solo se dibuja cuando algo cambia
+    var ECO = 4, DPR = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
     var quality = { level: 0, sum: 0, n: 0, warm: 0, lastRender: 0 };
     function setLevel(l) {
       if (l <= quality.level) return;
       quality.level = l;
       quality.warm = 0; quality.sum = 0; quality.n = 0;
-      if (l >= 2) sun.castShadow = false;
-      renderer.setPixelRatio(l >= 3 ? 0.6 : l === 2 ? 0.8 : 1);
+      if (l >= 3) sun.castShadow = false;
+      renderer.setPixelRatio(l >= ECO ? 0.7 : l === 3 ? Math.min(DPR, 1) : l === 2 ? Math.min(DPR, 1.35) : DPR);
       size.w = 0;
       resize();
       host.setAttribute("data-quality", String(l));
       dirty = true;
     }
     function govern(interval) {
-      if (options.lockQuality || quality.level >= 3 || interval <= 0) return;
+      if (options.lockQuality || quality.level >= ECO || interval <= 0) return;
       if (quality.warm < 6) { quality.warm++; return; }
       quality.sum += Math.min(interval, 600);
       quality.n++;
       // sin aceleración gráfica se nota enseguida: no hace falta esperar a la media larga
-      if (quality.n >= 3 && quality.sum / quality.n > 250) { setLevel(3); return; }
-      if (quality.n < 10) return;
+      if (quality.n >= 3 && quality.sum / quality.n > 250) { setLevel(ECO); return; }
+      if (quality.n < 12) return;
       var avg = quality.sum / quality.n;
       quality.sum = 0; quality.n = 0;
-      if (avg > 110) setLevel(3);
-      else if (avg > 62) setLevel(2);
-      else if (avg > 42) setLevel(1);
+      if (avg > 130) setLevel(quality.level >= 3 ? ECO : 3);
+      else if (avg > 36 && quality.level < 3) setLevel(quality.level + 1);
     }
     function isMoving() {
       return dirty || !!viewTween || !!timeTween || (mode === "tour" && tourFrames > 0) ||
@@ -1698,7 +1812,7 @@
       if (!active || document.hidden) { last = now; lastRaf = 0; return; }
       // primero se espera a que la ortofoto esté lista (con un tope de 6 s)
       if (!firstFrame && pendingTex > 0 && now - born < 6000) return;
-      var eco = quality.level >= 3;
+      var eco = quality.level >= ECO;
       if (eco) {
         if (!isMoving()) { last = now; return; }
         if (now - quality.lastRender < 80) return;
