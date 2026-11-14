@@ -90,12 +90,12 @@
   var VIEWS = {
     hero:    { pos: [-38, 12.5, -46], target: [7, 4, -7],     fov: 40, wide: true },
     llegada: { pos: [-8, 5.5, -50],   target: [8, 4.6, -9],   fov: 40, wide: true },
-    mesa:    { pos: [19.9, 5.5, 0.1], target: [18.3, 5.0, -1.8], fov: 46, look: true },
-    ocaso:   { pos: [20.7, 4.6, -17.7], target: [-30, 4.2, -21], fov: 58, look: true },
+    mesa:    { pos: [19.9, 5.5, 0.1], target: [18.3, 5.0, -1.8], fov: 46, look: true, focus: 2.4, ap: 0.95 },
+    ocaso:   { pos: [20.7, 4.6, -17.7], target: [-30, 4.2, -21], fov: 58, look: true, focus: 8, ap: 0.2 },
     general: { pos: [60, 27, -56],    target: [5, 3, -6],     fov: 40, wide: true },
     mar:     { pos: [9, 3.4, -66],    target: [8, 5, -8],     fov: 36, wide: true },
-    terraza: { pos: [0.9, 4.3, -16.3], target: [16, 3.8, -13.0], fov: 62, look: true },
-    comedor: { pos: [17.2, 5.75, 0.9], target: [16.8, 5.3, -20], fov: 62, look: true },
+    terraza: { pos: [0.9, 4.3, -16.3], target: [16, 3.8, -13.0], fov: 62, look: true, focus: 7, ap: 0.22 },
+    comedor: { pos: [17.2, 5.75, 0.9], target: [16.8, 5.3, -20], fov: 62, look: true, focus: 5, ap: 0.3 },
     cala:    { pos: [53, 3.2, 27],    target: [27, 3.8, 6],   fov: 40 },
     denia:   { pos: [-2.4, 4.5, -14.5], target: [-2610, 60, -951], fov: 24, look: true }
   };
@@ -495,6 +495,24 @@
     M.sueloInt.envMapIntensity = 0.5;
     M.mantel.envMapIntensity = 0.55;
     M.muroAzul = pbr({ color: 0xe6eff4, map: T.cal, normalMap: T.calN, normalScale: ns(0.8), roughness: 0.96 });
+    function weather(mat, amount) {
+      mat.onBeforeCompile = function (sh) {
+        sh.uniforms.uStain = { value: T.rock };
+        sh.vertexShader = "varying vec3 vWPos;\n" + sh.vertexShader.replace("#include <project_vertex>",
+          "#include <project_vertex>\n  #ifdef USE_INSTANCING\n  vWPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;\n  #else\n  vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\n  #endif");
+        sh.fragmentShader = "varying vec3 vWPos; uniform sampler2D uStain;\n" + sh.fragmentShader.replace("#include <map_fragment>",
+          "#include <map_fragment>\n" +
+          "  float wA = texture2D(uStain, vWPos.xz * 0.045 + vec2(vWPos.y * 0.021, 0.0)).r;\n" +
+          "  float wB = texture2D(uStain, vec2((vWPos.x + vWPos.z) * 0.55, vWPos.y * 0.035)).r;\n" +
+          "  float low = 1.0 - smoothstep(0.2, 2.0, vWPos.y);\n" +
+          "  float dirt = (1.0 - wA) * 0.2 + smoothstep(0.6, 0.2, wB) * 0.16 + low * 0.3;\n" +
+          "  diffuseColor.rgb *= mix(vec3(1.0), vec3(0.78, 0.74, 0.66), clamp(dirt * " + amount.toFixed(2) + ", 0.0, 1.0));");
+      };
+      mat.customProgramCacheKey = function () { return "cal" + amount; };
+    }
+    weather(M.cal, 1.35);
+    weather(M.muroAzul, 1.5);
+    weather(M.calLisa, 0.7);
 
     function mesh(geo, mat, x, y, z, parent, opts) {
       var m = new THREE.Mesh(geo, mat);
@@ -896,9 +914,13 @@
     }
     // prisma vertical sobre un polígono en planta, con UV en metros / tile
     function prismGeo(poly, y0, y1, tile) {
-      var g = new THREE.ExtrudeGeometry(shapeOf(poly), { depth: y1 - y0, bevelEnabled: false });
+      // un canto vivo perfecto delata el render: los volúmenes grandes llevan un pequeño bisel que recoge la luz
+      var bv = y1 - y0 > 0.6 ? 0.035 : 0;
+      var g = new THREE.ExtrudeGeometry(shapeOf(poly), bv
+        ? { depth: y1 - y0 - bv * 2, bevelEnabled: true, bevelThickness: bv, bevelSize: bv, bevelOffset: -bv, bevelSegments: 1 }
+        : { depth: y1 - y0, bevelEnabled: false });
       g.rotateX(-Math.PI / 2);
-      g.translate(0, y0, 0);
+      g.translate(0, y0 + bv, 0);
       var uv = g.attributes.uv, t = tile || 2.5;
       for (var i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / t, uv.getY(i) / t);
       return g;
@@ -1427,6 +1449,29 @@
       }
     })();
 
+    // buganvilla trepando por los muros y macetas con geranios
+    (function () {
+      var lobe = blob(2, 0.95, 2.4, 0.85, 0, 0.5);
+      var magenta = pbr({ color: 0xc4267c, map: T.fol, normalMap: T.folN, normalScale: ns(1.8), vertexColors: true, roughness: 0.85 });
+      var rojo = pbr({ color: 0xc8322a, map: T.fol, normalMap: T.folN, normalScale: ns(1.8), vertexColors: true, roughness: 0.85 });
+      function mata(x, y, z, sz, mat) {
+        for (var i = 0; i < 5; i++) {
+          var m = mesh(lobe, i % 2 === 0 ? M.verde : mat, x + (hash2(x + i, z) - 0.5) * sz * 1.5, y + (hash2(z, x + i) - 0.3) * sz * 1.1, z + (hash2(x - i, z + i) - 0.5) * sz * 0.7, resto);
+          m.scale.set(sz * (0.38 + hash2(i, x) * 0.3), sz * (0.3 + hash2(i, z) * 0.25), sz * (0.3 + hash2(x, i) * 0.25));
+          m.rotation.y = i * 1.9;
+        }
+      }
+      mata(-6.6, Y_UP + 1.7, 4.75, 1.5, magenta);   // pabellón de teja, hacia la calle
+      mata(5.1, Y_UP + 1.6, 9.1, 1.3, magenta);     // junto a la entrada
+      mata(-7.6, Y_UP + 1.4, -7.4, 1.0, magenta);   // costado del porche
+      mata(25.9, 4.9, 2.2, 1.1, magenta);           // sobre el muro de la cala
+      [[6.5, -9.75], [8.2, -9.9], [9.9, -9.75]].forEach(function (q) {
+        var pot = mesh(potGeo, M.barro, q[0], Y_PT + 1.17, q[1], resto);
+        pot.scale.setScalar(0.5);
+        mata(q[0], Y_PT + 1.5, q[1], 0.32, rojo);
+      });
+    })();
+
     /* ================= palmeras ================= */
     var palms = [];
     var palmDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: T.palma, alphaTest: 0.35 });
@@ -1577,6 +1622,7 @@
     // Dos maneras de mirar: orbitar alrededor del edificio, o girar la mirada desde un punto fijo.
     var camPos = new THREE.Vector3(), camTgt = new THREE.Vector3(), tmpV = new THREE.Vector3();
     var sph = { r: 50, theta: 0, phi: 1 }, goal = { r: 50, theta: 0, phi: 1 };
+    var dof = { f: 10, a: 0 }, dofGoal = { f: 10, a: 0 };
     var look = false, wide = true, fov = 40, fovGoal = 40, viewTween = null, mode = "hero", userTouched = false, scrollP = 0;
     var pointer = { x: 0, y: 0 }, pointerS = { x: 0, y: 0 };
     var offset = { x: 0, y: 0 }, offsetGoal = { x: 0, y: 0 };
@@ -1603,6 +1649,7 @@
       look = !!v.look;
       wide = !!v.wide;
       fov = fovGoal = v.fov;
+      dofGoal.a = v.ap || 0; dofGoal.f = v.focus || 10;
       var d = camPos.clone().sub(camTgt), r = d.length();
       sph.r = goal.r = r;
       sph.theta = goal.theta = Math.atan2(d.x, d.z);
@@ -1655,6 +1702,7 @@
         if (!reduced && !eco) camera.position.y += Math.sin(time * 0.35) * 0.04;
         camera.lookAt(tourTgt);
         fov = lerp(fov, lerp(va.fov, vb.fov, e2), kt);
+        dofGoal.a = lerp(va.ap || 0, vb.ap || 0, e2); dofGoal.f = lerp(va.focus || 10, vb.focus || 10, e2);
         if (tourFrames > 0) tourFrames--;
       } else if (viewTween) {
         viewTween.t = Math.min(1, viewTween.t + dt / viewTween.dur);
@@ -1666,6 +1714,7 @@
         tmpV.set(lerp(viewTween.tgt.x, v.target[0], e), lerp(viewTween.tgt.y, v.target[1], e), lerp(viewTween.tgt.z, v.target[2], e));
         camera.lookAt(tmpV);
         fov = lerp(viewTween.fov, v.fov, e);
+        dofGoal.a = (v.ap || 0) * e; dofGoal.f = v.focus || 10;
         if (viewTween.t >= 1) { applyView(viewTween.name); viewTween = null; }
       } else {
         if (mode === "explore" && !look && !userTouched && !reduced && !eco) goal.theta += dt * 0.03;
@@ -1699,6 +1748,7 @@
       }
       offset.x = lerp(offset.x, offsetGoal.x, k * 0.6);
       offset.y = lerp(offset.y, offsetGoal.y, k * 0.6);
+      dof.a = lerp(dof.a, dofGoal.a, k); dof.f = lerp(dof.f, dofGoal.f, k);
       camera.fov = fov;
       if (Math.abs(offset.x) > 0.001 || Math.abs(offset.y) > 0.001) camera.setViewOffset(size.w, size.h, -offset.x * size.w, offset.y * size.h, size.w, size.h);
       else camera.clearViewOffset();
@@ -1719,6 +1769,8 @@
       var aoRT = new THREE.WebGLRenderTarget(4, 4, { depthBuffer: false });
       var bA = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: false });
       var bB = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: false });
+      var cA = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: false });
+      var cB = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: false });
       var VS = "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }";
       var DEPTH = "uniform sampler2D tDepth; uniform mat4 uInvProj;\nvec3 viewPos(vec2 uv){ float d = texture2D(tDepth, uv).x; vec4 v = uInvProj * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); return v.xyz / v.w; }";
       function pass(uniforms, lines) {
@@ -1767,6 +1819,14 @@
         "  gl_FragColor = vec4(min(c * smoothstep(1.5, 3.0, l), vec3(14.0)), 1.0);",
         "}"
       ]);
+      var down = pass({ tColor: { value: rt.texture }, uTexel: { value: new THREE.Vector2() } }, [
+        "uniform sampler2D tColor; uniform vec2 uTexel; varying vec2 vUv;",
+        "void main(){",
+        "  vec3 c = texture2D(tColor, vUv + uTexel * vec2(-1.0, -1.0)).rgb + texture2D(tColor, vUv + uTexel * vec2(1.0, -1.0)).rgb",
+        "         + texture2D(tColor, vUv + uTexel * vec2(-1.0, 1.0)).rgb + texture2D(tColor, vUv + uTexel * vec2(1.0, 1.0)).rgb;",
+        "  gl_FragColor = vec4(min(c * 0.25, vec3(6.0)), 1.0);",
+        "}"
+      ]);
       var blur = pass({ tSrc: { value: null }, uDir: { value: new THREE.Vector2() } }, [
         "uniform sampler2D tSrc; uniform vec2 uDir; varying vec2 vUv;",
         "void main(){",
@@ -1778,8 +1838,8 @@
         "  gl_FragColor = vec4(c, 1.0);",
         "}"
       ]);
-      var comp = pass({ tColor: { value: rt.texture }, tAO: { value: aoRT.texture }, tBloom: { value: bA.texture }, tDepth: depth, uInvProj: invProj, uAoTexel: { value: new THREE.Vector2() }, uBloom: { value: 0.3 } }, [
-        "uniform sampler2D tColor; uniform sampler2D tAO; uniform sampler2D tBloom; uniform vec2 uAoTexel; uniform float uBloom; varying vec2 vUv;",
+      var comp = pass({ tColor: { value: rt.texture }, tAO: { value: aoRT.texture }, tBloom: { value: bA.texture }, tDepth: depth, uInvProj: invProj, uAoTexel: { value: new THREE.Vector2() }, uBloom: { value: 0.3 }, tBlur: { value: cA.texture }, uFocus: { value: 10 }, uAperture: { value: 0 }, uSeed: { value: 0 } }, [
+        "uniform sampler2D tColor; uniform sampler2D tAO; uniform sampler2D tBloom; uniform sampler2D tBlur; uniform vec2 uAoTexel; uniform float uBloom; uniform float uFocus; uniform float uAperture; uniform float uSeed; varying vec2 vUv;",
         DEPTH,
         "void main(){",
         "  vec3 col = texture2D(tColor, vUv).rgb;",
@@ -1791,10 +1851,16 @@
         "    float wt = 1.0 / (1.0 + abs(z - z0) / max(-z0, 0.5) * 70.0);",
         "    sum += texture2D(tAO, vUv + o).r * wt; w += wt;",
         "  } }",
-        "  col *= mix(1.0, sum / w, 0.92);",
+        // profundidad de campo: lo que queda lejos del plano enfocado se funde con una copia desenfocada
+        "  float coc = smoothstep(0.08, 1.0, clamp(abs(-z0 - uFocus) / max(uFocus, 0.5) * uAperture, 0.0, 1.0));",
+        "  col = mix(col, texture2D(tBlur, vUv).rgb, coc);",
+        "  col *= mix(1.0, sum / w, 0.92 * (1.0 - coc * 0.6));",
         "  col += texture2D(tBloom, vUv).rgb * uBloom;",
         "  float l = dot(col, vec3(0.2126, 0.7152, 0.0722));",
-        "  col = mix(vec3(l), col, 1.05);",
+        "  col = mix(vec3(l), col, 1.04);",
+        // sombras algo frías y luces algo cálidas, como en una foto al sol; y un grano muy fino
+        "  col *= mix(vec3(0.965, 0.99, 1.035), vec3(1.03, 1.0, 0.955), smoothstep(0.0, 1.1, l));",
+        "  col += (fract(sin(dot(gl_FragCoord.xy + uSeed, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.022 * (0.35 + l);",
         "  vec2 q = vUv - 0.5;",
         "  col *= 1.0 - dot(q, q) * 0.2;",
         "  gl_FragColor = vec4(col, 1.0);",
@@ -1806,7 +1872,7 @@
       quad.frustumCulled = false;
       var ps = new THREE.Scene();
       ps.add(quad);
-      post = { rt: rt, aoRT: aoRT, bA: bA, bB: bB, ao: ao, bright: bright, blur: blur, comp: comp, quad: quad, scene: ps, cam: new THREE.Camera(), size: new THREE.Vector2(), invProj: invProj };
+      post = { rt: rt, aoRT: aoRT, bA: bA, bB: bB, cA: cA, cB: cB, down: down, ao: ao, bright: bright, blur: blur, comp: comp, quad: quad, scene: ps, cam: new THREE.Camera(), size: new THREE.Vector2(), invProj: invProj };
     })();
     function renderScene() {
       if (post && quality.level === 0) {
@@ -1818,6 +1884,8 @@
             P.aoRT.setSize(Math.ceil(s.x / 2), Math.ceil(s.y / 2));
             P.bA.setSize(Math.ceil(s.x / 4), Math.ceil(s.y / 4));
             P.bB.setSize(Math.ceil(s.x / 4), Math.ceil(s.y / 4));
+            P.cA.setSize(Math.ceil(s.x / 4), Math.ceil(s.y / 4));
+            P.cB.setSize(Math.ceil(s.x / 4), Math.ceil(s.y / 4));
           }
           renderer.setRenderTarget(P.rt);
           if (!P.checked) {
@@ -1846,6 +1914,24 @@
           P.blur.uniforms.uDir.value.set(0, 1 / P.bA.height);
           renderer.setRenderTarget(P.bA);
           renderer.render(P.scene, P.cam);
+          if (dof.a > 0.01) {
+            P.down.uniforms.uTexel.value.set(1 / s.x, 1 / s.y);
+            P.quad.material = P.down;
+            renderer.setRenderTarget(P.cA);
+            renderer.render(P.scene, P.cam);
+            P.quad.material = P.blur;
+            P.blur.uniforms.tSrc.value = P.cA.texture;
+            P.blur.uniforms.uDir.value.set(0.8 / P.cA.width, 0);
+            renderer.setRenderTarget(P.cB);
+            renderer.render(P.scene, P.cam);
+            P.blur.uniforms.tSrc.value = P.cB.texture;
+            P.blur.uniforms.uDir.value.set(0, 0.8 / P.cA.height);
+            renderer.setRenderTarget(P.cA);
+            renderer.render(P.scene, P.cam);
+          }
+          P.comp.uniforms.uFocus.value = dof.f;
+          P.comp.uniforms.uAperture.value = dof.a;
+          P.comp.uniforms.uSeed.value = (frames % 61) * 1.37;
           P.comp.uniforms.uAoTexel.value.set(1 / P.aoRT.width, 1 / P.aoRT.height);
           P.comp.uniforms.uBloom.value = 0.28 + cur.lamps * 0.3;
           P.quad.material = P.comp;
