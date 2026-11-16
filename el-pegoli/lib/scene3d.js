@@ -163,6 +163,8 @@
     var useShadows = true;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
     renderer.domElement.setAttribute("aria-hidden", "true");
     host.appendChild(renderer.domElement);
     renderer.info.autoReset = false;
@@ -800,10 +802,11 @@
       detailMid.repeat.set(150, 150);
       detailMid.needsUpdate = true;
       terrain(MIDG, OT.medio, function (x, z, h, border) {
+        if (h < -2.5) return -24;
         if (inGrid(NEARG, x, z, 10)) return h - 5;
         return border ? Math.min(h, gridH(FARG, x, z) - 4) : h;
       }, { normalMap: detailMid, normalScale: ns(0.55) }).receiveShadow = false;
-      terrain(FARG, OT.lejos, function (x, z, h) { return inGrid(MIDG, x, z, 70) ? h - 30 : h; }).receiveShadow = false;
+      terrain(FARG, OT.lejos, function (x, z, h) { return h < -2.5 ? -45 : inGrid(MIDG, x, z, 70) ? h - 30 : h; }).receiveShadow = false;
     })();
 
     /* ================= mar ================= */
@@ -830,63 +833,67 @@
     seaU.uFogCol = { value: new THREE.Color() };
     seaU.uFogD = { value: 0.0002 };
     seaU.uBoost = { value: 1 };
+    (function () {
+      var wf = tileFbm(512, 7, 7, 5, trng);
+      T.aguaN = normalTex(wf, 512, 3.4);
+      T.ruido = colorTex(tileFbm(256, 6, 6, 4, trng), 256, function (v) { return grey(v, 0.0, 1.0); });
+    })();
+    seaU.uWaveN = { value: T.aguaN };
+    seaU.uNoise = { value: T.ruido };
     var seaMat = new THREE.ShaderMaterial({
       uniforms: seaU,
       fog: false,
       defines: isMobile ? { LOW: 1 } : {},
       vertexShader: "varying vec3 vWorld; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }",
       fragmentShader: [
-        "uniform sampler2D uDepth; uniform sampler2D uOrto; uniform vec4 uNearRect; uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uWaterLight; uniform vec3 uFogCol; uniform float uFogD; uniform float uBoost;",
+        "uniform sampler2D uDepth; uniform sampler2D uOrto; uniform sampler2D uWaveN; uniform sampler2D uNoise; uniform vec4 uNearRect;",
+        "uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uWaterLight; uniform vec3 uFogCol; uniform float uFogD; uniform float uBoost;",
         "varying vec3 vWorld;",
         SKY_GLSL,
-        "vec2 waveGrad(vec2 p, float t, float dist){",
-        "  vec2 g = vec2(0.0);",
-        "  vec2 d1 = normalize(vec2(0.25, 1.0)); g += d1 * 0.3 * 0.09 * cos(dot(p, d1) * 0.3 + t * 0.8);",
-        "  vec2 d2 = normalize(vec2(-0.6, 1.0)); g += d2 * 0.72 * 0.04 * cos(dot(p, d2) * 0.72 + t * 1.2);",
-        "  vec2 d3 = normalize(vec2(1.0, 0.35)); g += d3 * 1.6 * 0.016 * cos(dot(p, d3) * 1.6 + t * 1.7);",
-        "  float e = 0.14;",
-        "  vec2 q = p * 0.8 + vec2(t * 0.26, t * 0.16);",
-        "  float n0 = fbm3(q);",
-        "  g += vec2(fbm3(q + vec2(e, 0.0)) - n0, fbm3(q + vec2(0.0, e)) - n0) / e * 0.26 / (1.0 + dist * 0.01);",
-        "  #ifndef LOW",
-        "  vec2 q2 = p * 3.6 - vec2(t * 0.42, t * 0.34);",
-        "  float m0 = fbm3(q2);",
-        "  g += vec2(fbm3(q2 + vec2(e, 0.0)) - m0, fbm3(q2 + vec2(0.0, e)) - m0) / e * 0.08 / (1.0 + dist * 0.04);",
-        "  #endif",
-        "  return g;",
-        "}",
         "void main(){",
         "  vec3 toCam = cameraPosition - vWorld;",
         "  float dist = length(toCam);",
         "  vec3 V = toCam / dist;",
-        "  vec2 g = waveGrad(vWorld.xz, uTime, dist);",
-        "  vec3 N = normalize(vec3(-g.x, 1.0, -g.y));",
-        "  vec2 uvn = (vWorld.xz - uNearRect.xy) * uNearRect.zw;",
+        "  vec2 p = vWorld.xz;",
+        // cuatro escalas de oleaje: mar de fondo, ola corta y dos rizados
+        "  float fade = 1.0 / (1.0 + dist * 0.004);",
+        "  vec2 g = (texture2D(uWaveN, p * 0.019 + uTime * vec2(0.0045, 0.003)).xy * 2.0 - 1.0) * 0.5;",
+        "  g += (texture2D(uWaveN, p * 0.071 - uTime * vec2(0.009, 0.013)).xy * 2.0 - 1.0) * 0.55;",
+        "  g += (texture2D(uWaveN, p * 0.27 + uTime * vec2(0.03, -0.017)).xy * 2.0 - 1.0) * 0.5 * fade;",
+        "  #ifndef LOW",
+        "  g += (texture2D(uWaveN, p * 0.93 - uTime * vec2(0.05, 0.043)).xy * 2.0 - 1.0) * 0.32 * fade * fade;",
+        "  #endif",
+        "  vec3 N = normalize(vec3(g.x * 0.56, 1.0, g.y * 0.56));",
+        "  vec2 uvn = (p - uNearRect.xy) * uNearRect.zw;",
         "  float wN = smoothstep(0.0, 0.05, uvn.x) * smoothstep(1.0, 0.95, uvn.x) * smoothstep(0.0, 0.05, uvn.y) * smoothstep(1.0, 0.95, uvn.y);",
         "  vec2 uvc = clamp(uvn, 0.0, 1.0);",
         "  float hgt = mix(-7.0, -8.0 + texture2D(uDepth, uvc).r * 16.0, wN);",
         "  float depth = max(-hgt, 0.0);",
-        // color del agua: profundidad + lo que se ve del fondo en la ortofoto
+        // color: profundidad + lo que deja ver la ortofoto del fondo, algo desplazado por la ola (refracción)
         "  vec3 body = mix(uShallow, uDeep, 1.0 - exp(-depth * 0.42));",
-        "  vec3 bed = texture2D(uOrto, vec2(uvc.x, 1.0 - uvc.y)).rgb;",
+        "  vec2 uvr = clamp(uvc + g * 0.0016 * min(depth, 3.0), 0.0, 1.0);",
+        "  vec3 bed = texture2D(uOrto, vec2(uvr.x, 1.0 - uvr.y)).rgb;",
         "  body = mix(body, bed * 1.7 + uShallow * 0.22, wN * (0.15 + 0.6 * exp(-depth * 0.5)));",
-        "  body *= uWaterLight * (0.72 + 0.28 * max(dot(N, uSunDir), 0.0));",
+        "  body *= uWaterLight * (0.74 + 0.26 * max(dot(N, uSunDir), 0.0));",
+        // reflejo del cielo (con nubes aproximadas) según el ángulo de visión
         "  vec3 R = reflect(-V, N); R.y = abs(R.y);",
-        "  #ifdef LOW",
         "  vec3 refl = skyBase(R);",
-        "  #else",
-        "  vec3 refl = skyClouds(skyBase(R), R);",
+        "  #ifndef LOW",
+        "  float cn = texture2D(uNoise, R.xz / (R.y + 0.2) * 0.07 + uTime * 0.0007).r;",
+        "  refl = mix(refl, uCloudLit, smoothstep(0.86 - uCloud * 0.5, 1.05 - uCloud * 0.5, cn) * 0.6 * smoothstep(0.02, 0.25, R.y));",
         "  #endif",
         "  float F = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);",
-        "  vec3 col = mix(body, refl, clamp(F, 0.0, 0.9));",
-        "  float s = max(dot(R, uSunDir), 0.0);",
-        "  col += uSunCol * (pow(s, 380.0) * 5.0 + pow(s, 36.0) * 0.14);",
+        "  vec3 col = mix(body, refl, clamp(F, 0.0, 0.88));",
+        // camino de sol: brillo fino cerca, más ancho y suave a lo lejos
+        "  float sp = max(dot(R, uSunDir), 0.0);",
+        "  col += uSunCol * (pow(sp, 420.0) * 4.5 * fade + pow(sp, 48.0) * 0.2);",
         // espuma en la orilla y contra las rocas
-        "  float fn = fbm3(vWorld.xz * 1.1 + vec2(uTime * 0.2, -uTime * 0.11));",
-        "  float shore = (1.0 - smoothstep(0.0, 0.6, depth)) * wN;",
-        "  float lap = 0.5 + 0.5 * sin(uTime * 0.85 - depth * 5.0 + fn * 4.0);",
-        "  float foam = smoothstep(0.62, 0.96, shore * (0.5 + 0.5 * lap) + fn * 0.4 - 0.06);",
-        "  col = mix(col, vec3(0.95) * (uWaterLight * 0.75 + uSunCol * 0.25), clamp(foam, 0.0, 1.0) * 0.6);",
+        "  float fn = texture2D(uNoise, p * 0.085 + uTime * vec2(0.018, -0.011)).r;",
+        "  float fn2 = texture2D(uNoise, p * 0.33 - uTime * vec2(0.03, 0.02)).r;",
+        "  float shore = (1.0 - smoothstep(0.0, 0.7, depth)) * wN;",
+        "  float lap = 0.5 + 0.5 * sin(uTime * 0.85 - depth * 5.0 + fn * 5.0);",
+        "  float foam = smoothstep(0.6, 0.95, shore * (0.5 + 0.5 * lap) + fn2 * 0.45 - 0.1);",
+        "  col = mix(col, vec3(0.94) * (uWaterLight * 0.75 + uSunCol * 0.25), clamp(foam, 0.0, 1.0) * 0.65);",
         "  float fogF = 1.0 - exp(-uFogD * uFogD * dist * dist);",
         "  col = mix(col, uFogCol, fogF);",
         "  gl_FragColor = vec4(col * uBoost, 1.0);",
@@ -1583,6 +1590,7 @@
       M.lampara.emissiveIntensity = 0.35 + cur.lamps * 2.4;
       candles.material.opacity = cur.lamps;
       lampLights.forEach(function (l) { l.intensity = l.userData.max * cur.lamps; });
+      renderer.shadowMap.needsUpdate = true;
       if (refreshEnv) updateEnv();
     }
     applyTime(true);
@@ -1669,6 +1677,7 @@
       var w = host.clientWidth || window.innerWidth, h = host.clientHeight || window.innerHeight;
       if (w === size.w && h === size.h) return;
       size.w = w; size.h = h;
+      renderer.setPixelRatio(Math.max(0.7, Math.min(quality.dpr, Math.sqrt(3.0e6 / (w * h)))));
       renderer.setSize(w, h);
       camera.aspect = w / h;
       setOffsetGoal();
@@ -1752,6 +1761,9 @@
       camera.fov = fov;
       if (Math.abs(offset.x) > 0.001 || Math.abs(offset.y) > 0.001) camera.setViewOffset(size.w, size.h, -offset.x * size.w, offset.y * size.h, size.w, size.h);
       else camera.clearViewOffset();
+      camera.updateProjectionMatrix();
+      // en vistas aéreas el plano cercano se aleja: da mucha más precisión a la costa lejana
+      camera.near = camera.position.y > 9 ? 1.6 : 0.35;
       camera.updateProjectionMatrix();
       sky.position.copy(camera.position);
     }
@@ -1957,13 +1969,13 @@
     // Niveles: 0 todo · 1 sin posprocesado · 2 algo menos de resolución · 3 resolución base y sin sombras
     //          4 (ECO) solo se dibuja cuando algo cambia
     var ECO = 4, DPR = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
-    var quality = { level: 0, sum: 0, n: 0, warm: 0, lastRender: 0 };
+    var quality = { level: 0, sum: 0, n: 0, warm: 0, lastRender: 0, dpr: DPR };
     function setLevel(l) {
       if (l <= quality.level) return;
       quality.level = l;
       quality.warm = 0; quality.sum = 0; quality.n = 0;
       if (l >= 3) sun.castShadow = false;
-      renderer.setPixelRatio(l >= ECO ? 0.7 : l === 3 ? Math.min(DPR, 1) : l === 2 ? Math.min(DPR, 1.35) : DPR);
+      quality.dpr = l >= ECO ? 0.7 : l === 3 ? Math.min(DPR, 1) : l === 2 ? Math.min(DPR, 1.35) : DPR;
       size.w = 0;
       resize();
       host.setAttribute("data-quality", String(l));
@@ -2025,6 +2037,7 @@
       renderer.info.reset();
       renderScene();
       frames++;
+      if (frames < 4) renderer.shadowMap.needsUpdate = true; // las primeras pasadas, hasta que todo está cargado
       if (!firstFrame) {
         firstFrame = true;
         host.classList.add("is-live");
