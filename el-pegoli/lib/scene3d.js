@@ -97,7 +97,7 @@
     terraza: { pos: [0.9, 4.3, -16.3], target: [16, 3.8, -13.0], fov: 62, look: true, focus: 7, ap: 0.22 },
     comedor: { pos: [17.2, 5.75, 0.9], target: [16.8, 5.3, -20], fov: 62, look: true, focus: 5, ap: 0.3 },
     cala:    { pos: [53, 3.2, 27],    target: [27, 3.8, 6],   fov: 40 },
-    denia:   { pos: [-2.4, 4.5, -14.5], target: [-2610, 60, -951], fov: 24, look: true }
+    denia:   { pos: [8, 8.2, -17], target: [-2560, 40, -1010], fov: 17, look: true }
   };
 
   var POINTS = {
@@ -478,6 +478,58 @@
       T.rotulo.colorSpace = THREE.SRGBColorSpace;
       T.rotulo.anisotropy = maxAniso;
     })();
+    (function () {
+      var PS = isMobile ? 512 : 1024, n = PS * PS;
+      var r1 = tileFbm(PS, 4, 4, 5, trng), r2 = tileFbm(PS, 13, 13, 4, trng), r3 = tileFbm(PS, 44, 44, 3, trng);
+      var r4 = tileNoise(PS, 3, 26, trng), r5 = tileFbm(PS, 110, 110, 2, trng), r6 = tileFbm(PS, 7, 7, 4, trng);
+      var hf = new Float32Array(n), crack = new Float32Array(n), pit = new Float32Array(n);
+      for (var i = 0; i < n; i++) {
+        crack[i] = smooth(0.03, 0.0, Math.abs(r2[i] - 0.5)) * smooth(0.25, 0.6, r6[i]) + smooth(0.012, 0.0, Math.abs(r3[i] - 0.5)) * 0.5;
+        pit[i] = smooth(0.74, 0.84, r5[i]);
+        hf[i] = clamp(r1[i] * 0.4 + r2[i] * 0.3 + r3[i] * 0.14 + r4[i] * 0.16 - crack[i] * 0.55 - pit[i] * 0.22, 0, 1);
+      }
+      T.piedra = colorTex(hf, PS, function (v, x, y) {
+        var k = y * PS + x, t = smooth(0.34, 0.66, r1[k]), u = smooth(0.5, 0.8, r6[k]);
+        // ocre de Les Rotes <-> gris de caliza, con vetas rojizas
+        var cr = lerp(196, 164, t), cg = lerp(150, 156, t), cb = lerp(104, 146, t);
+        cr = lerp(cr, 172, u * 0.6); cg = lerp(cg, 108, u * 0.6); cb = lerp(cb, 70, u * 0.6);
+        var sh = (0.74 + r3[k] * 0.2 + r4[k] * 0.14) * (1 - crack[k] * 0.6) * (1 - pit[k] * 0.16);
+        return [Math.min(255, cr * sh), Math.min(255, cg * sh), Math.min(255, cb * sh)];
+      });
+      T.piedraN = normalTex(hf, PS, 7);
+    })();
+    // roca proyectada por los tres ejes (sin estirarse en las caras verticales), con relieve y franja mojada
+    function rockMaterial(mat, scale, bump) {
+      mat.onBeforeCompile = function (sh) {
+        sh.uniforms.uRockT = { value: T.piedra };
+        sh.vertexShader = "varying vec3 vWPos; varying vec3 vWN;\n" + sh.vertexShader
+          .replace("#include <beginnormal_vertex>", "#include <beginnormal_vertex>\n  #ifdef USE_INSTANCING\n  vWN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);\n  #else\n  vWN = normalize(mat3(modelMatrix) * objectNormal);\n  #endif")
+          .replace("#include <project_vertex>", "#include <project_vertex>\n  #ifdef USE_INSTANCING\n  vWPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;\n  #else\n  vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\n  #endif");
+        sh.fragmentShader = "varying vec3 vWPos; varying vec3 vWN; uniform sampler2D uRockT;\n" + sh.fragmentShader
+          .replace("#include <map_fragment>", [
+            "#include <map_fragment>",
+            "  vec3 bw = pow(abs(normalize(vWN)), vec3(4.0)); bw /= (bw.x + bw.y + bw.z);",
+            "  vec3 rockC = texture2D(uRockT, vWPos.zy * " + scale.toFixed(3) + ").rgb * bw.x + texture2D(uRockT, vWPos.xz * " + scale.toFixed(3) + ").rgb * bw.y + texture2D(uRockT, vWPos.xy * " + scale.toFixed(3) + ").rgb * bw.z;",
+            "  float wet = smoothstep(0.6, 0.0, vWPos.y);",
+            "  diffuseColor.rgb *= rockC * 1.75 * mix(1.0, 0.42, wet);",
+            "  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.7, 0.92, 0.6), wet * 0.4);"
+          ].join("\n"))
+          .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.3, smoothstep(0.55, 0.0, vWPos.y) * 0.75);")
+          .replace("#include <normal_fragment_maps>", [
+            "#include <normal_fragment_maps>",
+            "  { float hgt = dot(rockC, vec3(0.3333));",
+            "    vec3 dpx = dFdx(-vViewPosition); vec3 dpy = dFdy(-vViewPosition);",
+            "    float dhx = dFdx(hgt); float dhy = dFdy(hgt);",
+            "    vec3 r1 = cross(dpy, normal); vec3 r2 = cross(normal, dpx);",
+            "    float det = dot(dpx, r1);",
+            "    normal = normalize(abs(det) * normal - " + bump.toFixed(2) + " * sign(det) * (dhx * r1 + dhy * r2)); }"
+          ].join("\n"));
+      };
+      mat.customProgramCacheKey = function () { return "roca" + scale + "_" + bump; };
+      return mat;
+    }
+    M.roca = rockMaterial(pbr({ color: 0xffffff, roughness: 0.93, vertexColors: true }), 0.11, 1.0);
+    M.piedra = rockMaterial(pbr({ color: 0xf2e8d6, roughness: 0.95 }), 0.4, 0.9);
     M.hormigon = pbr({ color: 0x77726a, map: T.rock, normalMap: T.rockN, normalScale: ns(1.2), roughness: 0.98 });
     M.hormigonClaro = pbr({ color: 0xbdb8ae, map: T.rock, roughness: 0.9 });
     M.cristal2 = pbr({ color: 0xc9dbe0, roughness: 0.03, transparent: true, opacity: 0.14, envMapIntensity: 1.1, depthWrite: false });
@@ -779,17 +831,17 @@
       var mat = pbr(o);
       var grain = !!(extra && extra.normalMap);
       mat.onBeforeCompile = function (sh) {
-        sh.uniforms.uDetail = { value: T.rock };
+        sh.uniforms.uDetail = { value: T.piedra };
         // se recupera el color que la foto aérea pierde con la bruma y, de cerca, se le suma grano de roca
         sh.fragmentShader = "uniform sampler2D uDetail;\n" + sh.fragmentShader.replace("#include <map_fragment>",
           "#include <map_fragment>\n  float lumT = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));\n  diffuseColor.rgb = max(mix(vec3(lumT), diffuseColor.rgb, 1.4), 0.0);" +
-          (grain ? "\n  diffuseColor.rgb *= mix(vec3(1.0), texture2D(uDetail, vMapUv * 170.0).rgb * 1.65, 0.75);" : ""));
+          (grain ? "\n  diffuseColor.rgb *= mix(1.0, dot(texture2D(uDetail, vMapUv * 60.0).rgb, vec3(0.3333)) * 2.9, 0.55);" : ""));
       };
       return mesh(geo, mat, 0, 0, 0, scene, { cast: false });
     }
     (function () {
-      var detail = T.rockN.clone();
-      detail.repeat.set(64, 64);
+      var detail = T.piedraN.clone();
+      detail.repeat.set(56, 56);
       detail.needsUpdate = true;
       terrain(NEARG, OT.cerca, function (x, z, h, border) {
         if (border) return Math.min(h, gridH(MIDG, x, z) - 2.5);
@@ -1003,9 +1055,9 @@
 
     // bloques de roca en la orilla, colocados donde el relieve real toca el agua
     (function () {
-      var geos = [blob(isMobile ? 1 : 2, 0.75, 1.6, 0.55, 5, 0.3), blob(isMobile ? 1 : 2, 0.95, 2.4, 0.65, 4, 0.3)];
+      var geos = [blob(isMobile ? 2 : 3, 0.5, 1.5, 0.55, 5, 0.35), blob(isMobile ? 2 : 3, 0.62, 2.1, 0.62, 4, 0.35)];
       var lists = [[], []], d = new THREE.Object3D(), c = new THREE.Color(), tries = 0, n = 0, want = isMobile ? 70 : 170;
-      var tones = [0xb9a58a, 0x9c8a72, 0xc7b497, 0x8f7c66, 0xad9478];
+      var tones = [0xffffff, 0xf3e6d4, 0xe9dcc8, 0xfff2e0, 0xdcd2c4];
       while (n < want && tries++ < 9000) {
         var x = (rng() - 0.5) * 480, z = -150 + rng() * 300, h = landH(x, z);
         if (h < -0.7 || h > 0.9) continue;
@@ -1111,6 +1163,74 @@
         d.updateMatrix();
         im.setMatrixAt(i, d.matrix);
       });
+    })();
+
+    /* ================= Dénia ================= */
+    // Sus edificios reales (huellas de OpenStreetMap) como volúmenes, y el castillo con sus murallas sobre el cerro.
+    (function () {
+      var list = GEO.denia || [];
+      if (!list.length) return;
+      var mat = pbr({ color: 0xffffff, roughness: 0.95 });
+      mat.onBeforeCompile = function (sh) {
+        sh.uniforms.uLamps = { value: 0 };
+        mat.userData.shader = sh;
+        sh.vertexShader = "varying vec3 vWPos; varying vec3 vWN;\n" + sh.vertexShader
+          .replace("#include <beginnormal_vertex>", "#include <beginnormal_vertex>\n  vWN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);")
+          .replace("#include <project_vertex>", "#include <project_vertex>\n  vWPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;");
+        sh.fragmentShader = "varying vec3 vWPos; varying vec3 vWN; uniform float uLamps;\n" + sh.fragmentShader
+          .replace("#include <map_fragment>", [
+            "#include <map_fragment>",
+            // ventanas: una retícula por plantas en las fachadas; la cubierta queda lisa
+            "  vec2 wuv = vec2(vWPos.x + vWPos.z, vWPos.y) / vec2(3.3, 3.1);",
+            "  vec2 wf = fract(wuv);",
+            "  float wall = step(abs(vWN.y), 0.5);",
+            "  float win = step(0.27, wf.x) * step(wf.x, 0.73) * step(0.3, wf.y) * step(wf.y, 0.76) * wall;",
+            "  float wid = fract(sin(dot(floor(wuv), vec2(12.9898, 78.233))) * 43758.5453);",
+            "  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.13, 0.17, 0.21), win * 0.8);",
+            "  diffuseColor.rgb *= mix(vec3(0.86, 0.6, 0.45), vec3(1.0), wall);"
+          ].join("\n"))
+          .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n  totalEmissiveRadiance += vec3(1.0, 0.76, 0.42) * win * step(0.5, wid) * uLamps * 1.6;");
+      };
+      M.ciudad = mat;
+      var im = instanced(new THREE.BoxGeometry(1, 1, 1), mat, list.length, scene, false), d = new THREE.Object3D(), c = new THREE.Color();
+      var tones = [0xf6efe2, 0xeadcc0, 0xf0d9b8, 0xfaf6ee, 0xe2c9a4, 0xead0bd, 0xf3e3c8, 0xd9c3a2];
+      im.receiveShadow = false;
+      list.forEach(function (b, i) {
+        var y = gridH(FARG, b[0], b[1]);
+        d.position.set(b[0], y + b[5] / 2 - 1, b[1]);
+        d.rotation.set(0, (-b[4] * Math.PI) / 180, 0);
+        d.scale.set(b[2], b[5] + 2, b[3]);
+        d.updateMatrix();
+        im.setMatrixAt(i, d.matrix);
+        im.setColorAt(i, c.setHex(tones[Math.floor(hash2(b[0], b[1]) * tones.length)]).multiplyScalar(0.88 + hash2(b[1], b[0]) * 0.14));
+      });
+      // castillo y murallas
+      var segs = [];
+      (GEO.walls || []).forEach(function (w) {
+        for (var k = 0; k + 3 < w.length; k += 2) segs.push([w[k], w[k + 1], w[k + 2], w[k + 3]]);
+      });
+      var wm = instanced(new THREE.BoxGeometry(1, 1, 1), M.piedra, segs.length, scene, false);
+      wm.receiveShadow = false;
+      segs.forEach(function (g, i) {
+        var dx = g[2] - g[0], dz = g[3] - g[1], cx = (g[0] + g[2]) / 2, cz = (g[1] + g[3]) / 2;
+        d.position.set(cx, gridH(FARG, cx, cz) + 3, cz);
+        d.rotation.set(0, Math.atan2(dx, dz), 0);
+        d.scale.set(2.6, 13, Math.sqrt(dx * dx + dz * dz) + 1.5);
+        d.updateMatrix();
+        wm.setMatrixAt(i, d.matrix);
+      });
+      // pinar del cerro del castillo
+      var lobe = blob(1, 0.9, 1.9, 0.8, 0, 0.55), nT = isMobile ? 60 : 150, tm = instanced(lobe, M.pino, nT, scene, false);
+      tm.receiveShadow = false;
+      for (var t = 0; t < nT; t++) {
+        var a = hash2(t, 1.7) * 6.283, rr = 30 + Math.sqrt(hash2(t, 9.1)) * 170, x = -2610 + Math.cos(a) * rr * 1.25, z = -951 + Math.sin(a) * rr * 0.85, sc = 6 + hash2(t, 4.4) * 7;
+        d.position.set(x, gridH(FARG, x, z) + sc * 0.55, z);
+        d.rotation.set(0, a * 3, 0);
+        d.scale.set(sc * 1.3, sc * 0.75, sc * 1.3);
+        d.updateMatrix();
+        tm.setMatrixAt(t, d.matrix);
+        tm.setColorAt(t, c.setHex(hash2(t, 2.2) > 0.5 ? 0x3f6038 : 0x4d6b3c));
+      }
     })();
 
     /* ================= el restaurante ================= */
@@ -1547,6 +1667,32 @@
       scene.add(g);
       boats.push({ g: g, x: x, z: z, phase: rng() * 6, speed: 0.25 + rng() * 0.2 });
     }
+    // barcas fondeadas cerca de la costa
+    [[62, -34, 0.6], [-74, -48, 2.1], [96, -72, 1.2], [-150, -40, 0.3]].forEach(function (q, i) {
+      var g = new THREE.Group();
+      g.position.set(q[0], 0, q[1]);
+      g.rotation.y = q[2];
+      hull(g, 2.2, 0.78, 0.58);
+      mesh(box(0.9, 0.5, 1.0), i % 2 ? M.azulPint : M.plastico, 0, 0.6, 0.6, g);
+      scene.add(g);
+      boats.push({ g: g, x: q[0], z: q[1], phase: i * 1.3, speed: 0 });
+    });
+    // gaviotas planeando sobre la terraza y el islote
+    var birds = [];
+    (function () {
+      var wing = new THREE.BufferGeometry();
+      wing.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, -0.14, 0.72, 0, -0.05, 0, 0, 0.16, 0, 0, 0.16, 0.72, 0, -0.05, 0.5, 0, 0.12], 3));
+      wing.computeVertexNormals();
+      var white = pbr({ color: 0xf4f4f1, roughness: 0.8, side: THREE.DoubleSide });
+      for (var i = 0; i < (isMobile ? 4 : 8); i++) {
+        var g = new THREE.Group(), l = new THREE.Mesh(wing, white), r = new THREE.Mesh(wing, white);
+        r.scale.x = -1;
+        g.add(l); g.add(r);
+        g.add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5).scale(1, 0.8, 2.4), white));
+        scene.add(g);
+        birds.push({ g: g, l: l, r: r, cx: 6 + hash2(i, 1) * 40 - 14, cz: -34 - hash2(i, 2) * 40, rad: 14 + hash2(i, 3) * 30, y: 11 + hash2(i, 4) * 16, sp: (0.16 + hash2(i, 5) * 0.14) * (i % 2 ? 1 : -1), ph: hash2(i, 6) * 6.28 });
+      }
+    })();
     sailboat(-120, -210, 2.2, 1.2);
     sailboat(160, -330, 2.4, -1.1);
     sailboat(-340, -520, 2.4, 0.4);
@@ -1586,6 +1732,7 @@
       renderer.toneMappingExposure = cur.exposure;
       M.vidrio.emissiveIntensity = cur.lamps * 0.9;
       if (M.fachada) M.fachada.emissiveIntensity = cur.lamps * 0.3;
+      if (M.ciudad && M.ciudad.userData.shader) M.ciudad.userData.shader.uniforms.uLamps.value = cur.lamps;
       M.farol.emissiveIntensity = cur.lamps * 3.4;
       M.lampara.emissiveIntensity = 0.35 + cur.lamps * 2.4;
       candles.material.opacity = cur.lamps;
@@ -2031,6 +2178,13 @@
           bt.g.position.x = bt.x + Math.sin(time * 0.02 * bt.speed + bt.phase) * 40;
           bt.g.position.z = bt.z + Math.cos(time * 0.02 * bt.speed + bt.phase) * 14;
         }
+      }
+      for (var w = 0; w < birds.length; w++) {
+        var bd = birds[w], an = time * bd.sp + bd.ph, flap = Math.sin(time * 5.2 + bd.ph) * 0.5 * (0.35 + 0.65 * Math.max(0, Math.sin(time * 0.37 + bd.ph)));
+        bd.g.position.set(bd.cx + Math.cos(an) * bd.rad, bd.y + Math.sin(an * 2.1) * 1.6, bd.cz + Math.sin(an) * bd.rad);
+        bd.g.rotation.set(0, -an + (bd.sp > 0 ? 0 : Math.PI), Math.sin(an * 2.1) * 0.25, "YXZ");
+        bd.l.rotation.z = 0.12 + flap;
+        bd.r.rotation.z = -0.12 - flap;
       }
       dirty = false;
       updateCamera(dt, time, eco);

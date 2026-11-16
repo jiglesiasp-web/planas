@@ -240,6 +240,51 @@ for w in tree.findall("way"):
         flat += [round(p[0], 1), round(p[1], 1)]
     buildings.append(flat)
 
+# ---------- Dénia: edificios reales como cajas orientadas, castillo y murallas ----------
+DENIA_TILES = ["0.0947,38.8355,0.1080,38.8427", "0.1080,38.8355,0.1213,38.8427", "0.0947,38.8427,0.1080,38.8499", "0.1080,38.8427,0.1213,38.8499"]
+denia, walls, seen = [], [], set()
+for ti, bb in enumerate(DENIA_TILES, start=1):
+    xmlp = fetch("https://api.openstreetmap.org/api/0.6/map?bbox=" + bb, CACHE / ("denia_%d.xml" % ti))
+    root = ET.parse(xmlp).getroot()
+    nd = {n.get("id"): (float(n.get("lon")), float(n.get("lat"))) for n in root.findall("node")}
+    for w in root.findall("way"):
+        if w.get("id") in seen:
+            continue
+        tags = {t.get("k"): t.get("v") for t in w.findall("tag")}
+        pts = [nd[r.get("ref")] for r in w.findall("nd") if r.get("ref") in nd]
+        loc = np.array([((lo - LON) * M_LON, -(la - LAT) * M_LAT) for lo, la in pts])
+        if tags.get("historic") in ("castle", "citywalls") and len(loc) >= 2:
+            seen.add(w.get("id"))
+            walls.append([round(float(v), 1) for v in loc.reshape(-1)])
+            continue
+        if "building" not in tags or len(loc) < 4:
+            continue
+        seen.add(w.get("id"))
+        ring = loc[:-1]
+        c = ring.mean(axis=0)
+        d = ring - c
+        # caja orientada según el eje principal de la planta
+        evals, evecs = np.linalg.eigh(np.cov(d.T) + np.eye(2) * 1e-6)
+        ax = evecs[:, 1]
+        u = d @ ax
+        v2 = d @ np.array([-ax[1], ax[0]])
+        wdt, dpt = float(u.max() - u.min()), float(v2.max() - v2.min())
+        if wdt < 3 or dpt < 3 or wdt > 160:
+            continue
+        xs, ys = ring[:, 0], ring[:, 1]
+        area = 0.5 * abs(float(np.dot(xs, np.roll(ys, -1)) - np.dot(ys, np.roll(xs, -1))))
+        try:
+            lev = float(tags.get("building:levels", 0))
+        except ValueError:
+            lev = 0
+        if lev <= 0:
+            rnd = (abs(math.sin(c[0] * 12.9898 + c[1] * 78.233)) * 43758.5453) % 1.0
+            lev = (2 + int(rnd * 2)) if area < 110 else (3 + int(rnd * 3)) if area < 420 else (5 + int(rnd * 4))
+        cu, cv = (u.max() + u.min()) / 2, (v2.max() + v2.min()) / 2
+        cx, cz = c[0] + ax[0] * cu - ax[1] * cv, c[1] + ax[1] * cu + ax[0] * cv
+        denia.append([int(round(cx)), int(round(cz)), int(round(wdt)), int(round(dpt)), int(round(math.degrees(math.atan2(ax[1], ax[0])))), int(round(lev * 3.1))])
+print("Dénia: %d edificios, %d tramos de castillo y muralla" % (len(denia), len(walls)))
+
 # ---------- salida ----------
 near_uri, near_bytes = data_uri(near_img, 76)
 mid_uri, mid_bytes = data_uri(mid_img.resize((1536, 1536), Image.LANCZOS), 60)
@@ -250,6 +295,8 @@ geo = {
     "mid": {"cx": MID["cx"], "cz": MID["cz"], "size": MID["size"], "n": MID["n"], "h0": -100, "scale": 60, "heights": b64_u16(mid_h, -100, 60)},
     "far": {"cx": FAR["cx"], "cz": FAR["cz"], "size": FAR["size"], "n": FAR["n"], "h0": -100, "scale": 60, "heights": b64_u16(far_h, -100, 60)},
     "buildings": buildings,
+    "denia": denia,
+    "walls": walls,
     "trees": trees,
     "orto": {"cerca": near_uri, "medio": mid_uri, "lejos": far_uri},
 }
